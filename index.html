@@ -58,7 +58,8 @@
     background: var(--header-bg);
     color: var(--header-text);
     border-bottom: 1px solid var(--header-border);
-    padding: 18px 20px;
+    /* Respect safe-area insets on notched phones so the menu button isn't flush against the edge */
+    padding: 18px max(20px, env(safe-area-inset-right)) 18px max(20px, env(safe-area-inset-left));
     display: flex;
     align-items: center;
     justify-content: space-between;
