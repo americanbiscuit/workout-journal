@@ -2,7 +2,7 @@
 
 Single-file workout tracker. AM strength (machine/DB) → PM cardio + supplement-flavored metcon.
 
-**Live:** https://americanbiscuit.github.io/workout-journal/
+**Live:** https://workout-journal-85a.pages.dev/ (Cloudflare Pages)
 
 ## Features
 
@@ -22,10 +22,17 @@ Just open `index.html` in a browser. No build step.
 ## Deploying changes
 
 ```bash
+# Push to GitHub for backup
 git add . && git commit -m "your message" && git push
+
+# Deploy to Cloudflare Pages
+npx wrangler pages deploy . --project-name=workout-journal --branch=main --commit-dirty=true
 ```
 
-GitHub Pages will pick it up within ~1 minute.
+Live within ~10 seconds.
+
+To set up Git auto-deploy (so `git push` alone is enough), connect the GitHub repo to the Pages project in the Cloudflare dashboard:
+**dash.cloudflare.com → Workers & Pages → workout-journal → Settings → Builds & deployments → Connect**
 
 ## Constraints (Tanner-specific)
 
