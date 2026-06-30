@@ -1601,6 +1601,7 @@ function openModal(type, ...args) {
       <div class="menu-item" onclick="openModal('claudePrompt')">Claude Prompt <span class="meta">log via AI</span></div>
       <div class="menu-item" onclick="openModal('split')">Weekly Split <span class="meta">view</span></div>
       <div class="menu-item" onclick="location.href='/pool.html'">Exercise Pool <span class="meta">browse + star</span></div>
+      <div class="menu-item" onclick="location.href='/routines.html'">Routines <span class="meta">templates + schedule</span></div>
       <div class="menu-item" onclick="exportJSON()">Export Data <span class="meta">save backup</span></div>
       <div class="menu-item" onclick="document.getElementById('importInput').click()">Import Data <span class="meta">restore backup</span></div>
       <input type="file" id="importInput" accept=".json" style="display:none" onchange="importJSON(event)" />
@@ -1808,7 +1809,10 @@ function clearAll() {
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 window.addEventListener('DOMContentLoaded', async () => {
-  setDate(new Date().toISOString().slice(0, 10));
+  // Support deep-link to a specific date via ?date= (used after applying a routine)
+  const url = new URL(location.href);
+  const dateParam = url.searchParams.get('date');
+  setDate(dateParam || new Date().toISOString().slice(0, 10));
   const ok = await initAuth();
   if (!ok) return;
   pullFromCloud();

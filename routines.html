@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#1F1B17" />
+<title>Routines — Workout Journal</title>
+<style>
+  :root {
+    --bg: #F1EBDF; --surface: #F8F4EC; --surface-alt: #E8E0D0;
+    --border: #DBD2BF; --border-soft: #E6DCC7;
+    --text: #2D2A26; --text-2: #6B6660; --muted: #A39E97;
+    --accent: #FF7A55; --accent-soft: #FFE9DF; --accent-2: #5DAA80;
+    --warn: #E8A957; --danger: #DC6E6E; --gold: #F2B340;
+    --header-bg: #1F1B17; --header-text: #F1EBDF; --header-text-2: #B0A89A;
+    --header-border: #2F2A24;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+    padding-bottom: 60px; }
+  header {
+    position: sticky; top: 0; z-index: 50;
+    background: var(--header-bg); color: var(--header-text);
+    padding: 16px max(20px, env(safe-area-inset-right)) 16px max(20px, env(safe-area-inset-left));
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid var(--header-border);
+  }
+  .logo { font-size: 18px; font-weight: 800; letter-spacing: -0.5px; }
+  .logo .dot { color: var(--accent); }
+  a.back {
+    color: var(--header-text-2); text-decoration: none; font-size: 13px; font-weight: 600;
+    padding: 6px 12px; border: 1px solid var(--header-border); border-radius: 8px;
+  }
+  a.back:hover { color: var(--header-text); border-color: var(--accent); }
+  main { max-width: 720px; margin: 0 auto; padding: 22px 20px; }
+  h1 { margin: 0 0 4px; font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+  .subtle { color: var(--text-2); font-size: 14px; margin: 0 0 22px; }
+  .section-header {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;
+  }
+  .section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 800; color: var(--text-2); }
+  button {
+    background: var(--accent); color: white; border: none;
+    padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 700;
+    cursor: pointer; font-family: inherit;
+    transition: all 0.15s;
+  }
+  button:hover { transform: translateY(-1px); }
+  button.secondary { background: var(--surface-alt); color: var(--text); }
+  button.danger { background: var(--danger); }
+  button.ghost { background: transparent; border: 1px solid var(--border); color: var(--text-2); }
+  .routine-card {
+    background: var(--surface); border: 1px solid var(--border-soft);
+    border-radius: var(--radius); padding: 18px; margin-bottom: 12px;
+  }
+  .routine-head {
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+    margin-bottom: 8px;
+  }
+  .routine-name { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; }
+  .routine-cat {
+    background: var(--accent-soft); color: var(--accent);
+    padding: 3px 10px; border-radius: 999px;
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.8px;
+  }
+  .routine-meta { color: var(--text-2); font-size: 13px; margin: 8px 0; }
+  .routine-exercises {
+    display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0;
+  }
+  .ex-tag {
+    background: var(--surface-alt);
+    color: var(--text);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .ex-tag.metcon { background: var(--accent-2-soft); color: var(--accent-2); }
+  .day-pills {
+    display: flex; gap: 4px; margin: 12px 0 6px;
+  }
+  .day-pill-btn {
+    background: var(--surface-alt); color: var(--text-2);
+    border: none; padding: 6px 9px; border-radius: 6px;
+    font-size: 11px; font-weight: 700; cursor: pointer;
+    letter-spacing: 0.3px; font-family: inherit;
+  }
+  .day-pill-btn.on { background: var(--gold); color: white; }
+  .routine-actions {
+    display: flex; gap: 6px; margin-top: 14px; flex-wrap: wrap;
+  }
+  .routine-actions button { padding: 7px 14px; font-size: 12px; }
+  .empty {
+    background: var(--surface); border: 2px dashed var(--border);
+    border-radius: var(--radius); padding: 40px 20px;
+    text-align: center; color: var(--text-2); font-size: 14px;
+  }
+  .empty p { margin: 6px 0; }
+  .modal-bg {
+    position: fixed; inset: 0; background: rgba(45,42,38,0.45);
+    display: none; align-items: center; justify-content: center; z-index: 100;
+    padding: 20px;
+  }
+  .modal-bg.show { display: flex; }
+  .modal-card {
+    background: var(--surface); border-radius: 16px; padding: 24px;
+    width: 100%; max-width: 460px; max-height: 88vh; overflow-y: auto;
+  }
+  .modal-card h2 { margin: 0 0 16px; font-size: 18px; }
+  label { display: block; font-size: 11px; color: var(--text-2);
+    text-transform: uppercase; letter-spacing: 1.2px; font-weight: 700;
+    margin: 12px 0 4px; }
+  input, select, textarea {
+    width: 100%; background: var(--surface-alt); border: 1.5px solid transparent;
+    color: var(--text); padding: 10px 12px; border-radius: 10px;
+    font-size: 15px; font-family: inherit; font-weight: 600;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); background: white; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .modal-actions button { flex: 1; }
+  .ex-input-row {
+    display: grid; grid-template-columns: 1fr 60px 28px;
+    gap: 6px; margin-bottom: 6px; align-items: center;
+  }
+  .ex-input-row input[type=number] { text-align: center; padding: 8px; }
+  .ex-input-row button { background: transparent; color: var(--danger); border: none; cursor: pointer; padding: 0; font-size: 16px; }
+  .add-ex-btn {
+    width: 100%; background: var(--surface-alt); color: var(--text-2);
+    border: 1px dashed var(--border); padding: 10px; border-radius: 8px;
+    cursor: pointer; font-size: 13px; font-weight: 700; margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Journal<span class="dot">.</span> — Routines</div>
+  <a class="back" href="/">← journal</a>
+</header>
+
+<main>
+  <h1>Routines</h1>
+  <p class="subtle">Save workout templates and apply them to any day. Schedule them to auto-suggest on certain weekdays.</p>
+
+  <div class="section-header">
+    <div class="section-title">Saved Routines</div>
+    <button onclick="openCreate()">+ New Routine</button>
+  </div>
+
+  <div id="content"></div>
+</main>
+
+<!-- Create/Edit modal -->
+<div class="modal-bg" id="modalBg" onclick="if(event.target.id==='modalBg') closeModal()">
+  <div class="modal-card">
+    <h2 id="mTitle">New Routine</h2>
+    <form onsubmit="event.preventDefault(); submitRoutine();">
+      <label>Routine name</label>
+      <input type="text" id="mName" placeholder="Heavy Chest Day" required />
+      <label>Default category</label>
+      <select id="mCategory">
+        <option value="">— No default —</option>
+        <option>Chest/Tri</option>
+        <option>Back/Bi</option>
+        <option>Shoulders</option>
+        <option>Abs</option>
+        <option>Legs</option>
+      </select>
+      <label>AM exercises</label>
+      <div id="mAmList"></div>
+      <button type="button" class="add-ex-btn" onclick="addExRow('am')">+ Add exercise</button>
+      <label>PM metcon movements</label>
+      <div id="mMetconList"></div>
+      <button type="button" class="add-ex-btn" onclick="addExRow('metcon')">+ Add movement</button>
+      <div class="modal-actions">
+        <button type="button" class="secondary" onclick="closeModal()">Cancel</button>
+        <button type="submit">Save Routine</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Apply to date modal -->
+<div class="modal-bg" id="applyBg" onclick="if(event.target.id==='applyBg') closeApply()">
+  <div class="modal-card">
+    <h2>Apply Routine</h2>
+    <p class="subtle" id="applyDesc">Pick a date to fill with this routine's exercises.</p>
+    <label>Date</label>
+    <input type="date" id="applyDate" />
+    <div class="modal-actions">
+      <button class="secondary" onclick="closeApply()">Cancel</button>
+      <button onclick="confirmApply()">Apply</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+let routines = [];
+let currentUser = null;
+let editingId = null;
+let applyingRoutine = null;
+
+async function init() {
+  const r = await fetch('/api/me');
+  const { user } = await r.json();
+  if (!user) { location.href = '/login.html'; return; }
+  currentUser = user;
+  await loadRoutines();
+}
+
+async function loadRoutines() {
+  const r = await fetch('/api/routines');
+  const data = await r.json();
+  routines = data.routines || [];
+  render();
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function render() {
+  const c = document.getElementById('content');
+  if (!routines.length) {
+    c.innerHTML = `<div class="empty">
+      <p style="font-size:16px; color:var(--text); font-weight:700;">No routines yet</p>
+      <p>Tap "New Routine" to save your first workout template.</p>
+      <p style="margin-top:14px"><em>Tip: log a workout you like in the main app, then come back here and re-create it as a routine to reuse it weekly.</em></p>
+    </div>`;
+    return;
+  }
+  c.innerHTML = routines.map(r => `
+    <div class="routine-card">
+      <div class="routine-head">
+        <div>
+          <div class="routine-name">${escapeHtml(r.name)}</div>
+          ${r.category ? `<div class="routine-cat" style="margin-top:6px; display:inline-block">${r.category}</div>` : ''}
+        </div>
+      </div>
+      <div class="routine-exercises">
+        ${(r.am_exercises || []).map(e => `<span class="ex-tag">${escapeHtml(e.name)}${e.sets ? ' · ' + e.sets + 'sets' : ''}</span>`).join('')}
+        ${(r.metcon_exercises || []).map(e => `<span class="ex-tag metcon">${escapeHtml(e.name)}${e.reps ? ' · ' + e.reps : ''}</span>`).join('')}
+      </div>
+      <div class="day-pills" title="Tap a day to schedule this routine for it">
+        ${DAY_NAMES.map((n, i) => {
+          const on = (r.scheduledDays || []).includes(i);
+          return `<button class="day-pill-btn ${on?'on':''}" onclick="toggleSchedule(${r.id}, ${i})">${n}</button>`;
+        }).join('')}
+      </div>
+      <div class="routine-meta" style="font-size:11px; margin-top:6px;">Tap a day to schedule this routine on it. Only one routine per day.</div>
+      <div class="routine-actions">
+        <button onclick="applyRoutineFlow(${r.id})">Apply to date</button>
+        <button class="secondary" onclick="openEdit(${r.id})">Edit</button>
+        <button class="ghost" onclick="deleteRoutine(${r.id})">Delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ===== Create/Edit =====
+function openCreate() {
+  editingId = null;
+  document.getElementById('mTitle').textContent = 'New Routine';
+  document.getElementById('mName').value = '';
+  document.getElementById('mCategory').value = '';
+  document.getElementById('mAmList').innerHTML = '';
+  document.getElementById('mMetconList').innerHTML = '';
+  addExRow('am');
+  document.getElementById('modalBg').classList.add('show');
+}
+function openEdit(id) {
+  const r = routines.find(x => x.id === id);
+  editingId = id;
+  document.getElementById('mTitle').textContent = 'Edit Routine';
+  document.getElementById('mName').value = r.name;
+  document.getElementById('mCategory').value = r.category || '';
+  document.getElementById('mAmList').innerHTML = '';
+  document.getElementById('mMetconList').innerHTML = '';
+  (r.am_exercises || []).forEach(e => addExRow('am', e));
+  (r.metcon_exercises || []).forEach(e => addExRow('metcon', e));
+  document.getElementById('modalBg').classList.add('show');
+}
+function closeModal() { document.getElementById('modalBg').classList.remove('show'); }
+
+function addExRow(kind, prefill = {}) {
+  const c = document.getElementById(kind === 'am' ? 'mAmList' : 'mMetconList');
+  const numLabel = kind === 'am' ? 'sets' : 'reps';
+  const numField = kind === 'am' ? 'sets' : 'reps';
+  const div = document.createElement('div');
+  div.className = 'ex-input-row';
+  div.innerHTML = `
+    <input type="text" placeholder="Exercise name" value="${escapeHtml(prefill.name || '')}" data-field="name" />
+    <input type="number" placeholder="${numLabel}" value="${prefill[numField] ?? ''}" data-field="${numField}" />
+    <button type="button" onclick="this.parentNode.remove()" title="Remove">✕</button>
+  `;
+  c.appendChild(div);
+}
+
+async function submitRoutine() {
+  const name = document.getElementById('mName').value.trim();
+  const category = document.getElementById('mCategory').value;
+  const am_exercises = collectRows('mAmList', 'sets');
+  const metcon_exercises = collectRows('mMetconList', 'reps');
+  if (!name) return alert('Name required');
+  const body = { name, category: category || null, am_exercises, metcon_exercises };
+  const url = editingId ? `/api/routines/${editingId}` : '/api/routines';
+  const method = editingId ? 'PUT' : 'POST';
+  const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) { const { error } = await r.json(); return alert('Failed: ' + error); }
+  closeModal();
+  await loadRoutines();
+}
+function collectRows(containerId, numField) {
+  const rows = document.querySelectorAll(`#${containerId} .ex-input-row`);
+  const out = [];
+  rows.forEach(row => {
+    const inputs = row.querySelectorAll('input');
+    const nameInput = Array.from(inputs).find(i => i.dataset.field === 'name');
+    const numInput = Array.from(inputs).find(i => i.dataset.field === numField);
+    const name = nameInput?.value.trim();
+    if (!name) return;
+    const item = { name };
+    if (numInput?.value) item[numField] = parseInt(numInput.value);
+    out.push(item);
+  });
+  return out;
+}
+
+async function deleteRoutine(id) {
+  const r = routines.find(x => x.id === id);
+  if (!confirm(`Delete "${r.name}"? This also removes any day-of-week schedules for it.`)) return;
+  const res = await fetch(`/api/routines/${id}`, { method: 'DELETE' });
+  if (!res.ok) return alert('Delete failed');
+  await loadRoutines();
+}
+
+// ===== Scheduling =====
+async function toggleSchedule(routineId, dayOfWeek) {
+  // Find if any routine is currently scheduled for this day
+  const currentRoutineForDay = routines.find(r => (r.scheduledDays || []).includes(dayOfWeek));
+  if (currentRoutineForDay && currentRoutineForDay.id === routineId) {
+    // Unschedule
+    await fetch(`/api/routine-schedules?day=${dayOfWeek}`, { method: 'DELETE' });
+  } else {
+    // Schedule (replaces any existing one for this day)
+    await fetch('/api/routine-schedules', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ day_of_week: dayOfWeek, routine_id: routineId }),
+    });
+  }
+  await loadRoutines();
+}
+
+// ===== Apply to date =====
+function applyRoutineFlow(id) {
+  applyingRoutine = routines.find(x => x.id === id);
+  document.getElementById('applyDesc').textContent = `Pick a date to fill with "${applyingRoutine.name}".`;
+  document.getElementById('applyDate').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('applyBg').classList.add('show');
+}
+function closeApply() { document.getElementById('applyBg').classList.remove('show'); applyingRoutine = null; }
+
+async function confirmApply() {
+  const date = document.getElementById('applyDate').value;
+  if (!date || !applyingRoutine) return;
+  // Fetch existing workout for that date (if any)
+  let existing = null;
+  try {
+    const r = await fetch(`/api/workouts/${date}`);
+    if (r.ok) existing = await r.json();
+  } catch {}
+  if (existing && (existing.am?.exercises?.length || existing.metcon?.exercises?.length)) {
+    if (!confirm(`Workout already exists for ${date}. Replace it with "${applyingRoutine.name}"?`)) return;
+  }
+  // Build workout from routine
+  const workout = {
+    date,
+    category: applyingRoutine.category || (existing?.category || 'Abs'),
+    bodyWeight: existing?.bodyWeight ?? null,
+    am: {
+      exercises: (applyingRoutine.am_exercises || []).map(e => ({
+        name: e.name,
+        sets: Array.from({ length: e.sets || 3 }, () => ({ reps: null, weight: null }))
+      }))
+    },
+    cardio: existing?.cardio || { type: "Run", distance: 2, time: null },
+    metcon: {
+      rounds: existing?.metcon?.rounds ?? null,
+      time: existing?.metcon?.time ?? null,
+      rpe: existing?.metcon?.rpe ?? null,
+      exercises: (applyingRoutine.metcon_exercises || []).map(e => ({ name: e.name, reps: e.reps ?? null }))
+    },
+    notes: existing?.notes || ''
+  };
+  const r = await fetch(`/api/workouts/${date}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(workout),
+  });
+  if (!r.ok) { const { error } = await r.json(); return alert('Apply failed: ' + error); }
+  closeApply();
+  // Jump straight into the day view
+  location.href = '/?date=' + date;
+}
+
+init();
+</script>
+</body>
+</html>
