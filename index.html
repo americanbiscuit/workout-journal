@@ -1078,6 +1078,8 @@ let API_BASE = '/api/workouts';  // gets ?asUser= appended for admin impersonati
 let asUserId = null;             // admin impersonation target
 let currentUserObj = null;       // current logged-in user (admin if impersonating)
 let viewingUserObj = null;       // user whose workouts we're showing (= currentUserObj unless impersonating)
+let userPrefs = { favorites: new Set(), hidden: new Set() };  // exercise prefs (star/hide)
+let userCustomExercises = [];    // user's custom-added exercises (merge with POOL)
 
 let state = loadLocal();
 let syncEnabled = location.hostname !== '' && location.protocol !== 'file:';
@@ -1176,6 +1178,17 @@ async function initAuth() {
     } else {
       viewingUserObj = user;
     }
+    // Load user prefs (favorites/hidden) and custom exercises in parallel
+    Promise.all([
+      fetch('/api/exercise-prefs').then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch('/api/custom-exercises').then(r => r.ok ? r.json() : null).catch(() => null),
+    ]).then(([prefs, customs]) => {
+      if (prefs) {
+        userPrefs.favorites = new Set(prefs.favorites || []);
+        userPrefs.hidden = new Set(prefs.hidden || []);
+      }
+      if (customs) userCustomExercises = customs.exercises || [];
+    });
     // Render user name in header
     document.getElementById('userBadge').innerHTML = renderUserBadge();
     return true;
@@ -1183,6 +1196,14 @@ async function initAuth() {
     console.error('Auth check failed:', e);
     return false;
   }
+}
+
+// Helper: get the merged exercise list for a category+phase (defaults + customs - hidden)
+function getMergedExercises(category, phase) {
+  const defaults = POOL[category]?.[phase] || [];
+  const customs = userCustomExercises.filter(c => c.category === category && c.phase === phase).map(c => c.name);
+  const merged = [...new Set([...defaults, ...customs])];
+  return merged;
 }
 
 function renderUserBadge() {
@@ -1629,14 +1650,20 @@ function closeModalOnBackdrop(e) { if (e.target.id === 'modalBackdrop') closeMod
 function renderPickerChips() {
   const sec = modalContext.args[0];
   const cat = currentWorkout.category;
+  const favCount = userPrefs.favorites.size;
+  const starsChip = favCount > 0
+    ? `<button class="chip ${pickerFilter==='stars'?'active':''}" onclick="setPF('stars')">★ Stars (${favCount})</button>`
+    : '';
   if (sec === 'am') {
     return `<div class="chips">
       <button class="chip ${pickerFilter==='current'?'active':''}" onclick="setPF('current')">${cat}</button>
+      ${starsChip}
       <button class="chip ${pickerFilter==='all'?'active':''}" onclick="setPF('all')">All Categories</button>
     </div>`;
   }
   return `<div class="chips">
     <button class="chip ${pickerFilter==='current'?'active':''}" onclick="setPF('current')">${cat}</button>
+    ${starsChip}
     <button class="chip ${pickerFilter==='universal'?'active':''}" onclick="setPF('universal')">Cardio</button>
     <button class="chip ${pickerFilter==='all'?'active':''}" onclick="setPF('all')">All</button>
   </div>`;
@@ -1648,27 +1675,67 @@ function setPF(f) {
 }
 function renderPickerList() {
   const sec = modalContext.args[0];
+  const phase = sec === 'am' ? 'am' : 'pm';
   const q = (document.getElementById('modalSearchInput')?.value || '').toLowerCase().trim();
-  const groups = [];
   const cat = currentWorkout.category;
-  if (sec === 'am') {
-    if (pickerFilter === 'current') groups.push([cat, POOL[cat].am]);
-    else CATEGORY_LIST.forEach(c => groups.push([c, POOL[c].am]));
+  const groups = [];
+
+  if (pickerFilter === 'stars') {
+    // Favorites view — show ONLY starred exercises, filtered to current phase (am/pm)
+    // Group them by category for clarity
+    const favsByCategory = {};
+    [...userPrefs.favorites].forEach(name => {
+      // Find which category+phase this exercise belongs to
+      let found = null;
+      for (const c of CATEGORY_LIST) {
+        if (POOL[c].am.includes(name)) { found = { c, ph: 'am' }; break; }
+        if (POOL[c].pm.includes(name)) { found = { c, ph: 'pm' }; break; }
+      }
+      if (!found) {
+        const custom = userCustomExercises.find(x => x.name === name);
+        if (custom) found = { c: custom.category, ph: custom.phase };
+      }
+      if (!found) found = { c: 'Universal', ph: phase };
+      if (found.ph !== phase) return; // only show favorites matching the current section
+      (favsByCategory[found.c] = favsByCategory[found.c] || []).push(name);
+    });
+    // Put current day's category first
+    const order = [cat, ...CATEGORY_LIST.filter(c => c !== cat), 'Universal'];
+    order.forEach(c => {
+      if (favsByCategory[c]?.length) groups.push(['★ ' + c, favsByCategory[c]]);
+    });
+  } else if (sec === 'am') {
+    if (pickerFilter === 'current') groups.push([cat, getMergedExercises(cat, 'am')]);
+    else CATEGORY_LIST.forEach(c => groups.push([c, getMergedExercises(c, 'am')]));
   } else {
-    if (pickerFilter === 'current') groups.push([cat + ' supplement', POOL[cat].pm]);
-    else if (pickerFilter === 'universal') groups.push(['Cardio + Full Body', POOL.Universal.pm]);
-    else { CATEGORY_LIST.forEach(c => groups.push([c + ' supplement', POOL[c].pm])); groups.push(['Cardio + Full Body', POOL.Universal.pm]); }
+    if (pickerFilter === 'current') groups.push([cat + ' supplement', getMergedExercises(cat, 'pm')]);
+    else if (pickerFilter === 'universal') groups.push(['Cardio + Full Body', getMergedExercises('Universal', 'pm')]);
+    else {
+      CATEGORY_LIST.forEach(c => groups.push([c + ' supplement', getMergedExercises(c, 'pm')]));
+      groups.push(['Cardio + Full Body', getMergedExercises('Universal', 'pm')]);
+    }
   }
+
   let html = '';
   groups.forEach(([gn, list]) => {
-    const f = list.filter(e => !q || e.toLowerCase().includes(q));
+    // Filter by search, then drop hidden (unless filter=stars), then sort favorites to top
+    let f = list.filter(e => !q || e.toLowerCase().includes(q));
+    if (pickerFilter !== 'stars') f = f.filter(e => !userPrefs.hidden.has(e));
+    f.sort((a, b) => {
+      const af = userPrefs.favorites.has(a), bf = userPrefs.favorites.has(b);
+      if (af !== bf) return af ? -1 : 1;
+      return a.localeCompare(b);
+    });
     if (!f.length) return;
     html += `<div class="group-label">${gn}</div>`;
-    html += f.map(n => `
-      <div class="exercise-pick" onclick="addExercise(${JSON.stringify(n).replace(/'/g, "\\'")}, '${sec}'); closeModal();">
-        <div class="name">${escapeHtml(n)}</div>
-        <div class="add-icon">+</div>
-      </div>`).join('');
+    html += f.map(n => {
+      const isFav = userPrefs.favorites.has(n);
+      return `
+        <div class="exercise-pick" onclick="addExercise(${JSON.stringify(n).replace(/'/g, "\\'")}, '${sec}'); closeModal();">
+          <div class="name">${isFav ? '<span style="color:var(--gold,#F2B340);margin-right:6px;">★</span>' : ''}${escapeHtml(n)}</div>
+          <div class="add-icon">+</div>
+        </div>`;
+    }).join('');
   });
   if (!html) html = `<div class="empty">No matches for "${escapeHtml(q)}"</div>`;
   return html;
