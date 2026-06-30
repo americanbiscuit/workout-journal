@@ -246,6 +246,12 @@ async function saveWorkout() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(parsedWorkout),
     });
+    if (res.status === 401) {
+      // Save the import URL so we come back after login
+      sessionStorage.setItem('postLoginRedirect', location.href);
+      location.href = '/login.html';
+      return;
+    }
     if (!res.ok) throw new Error(await res.text());
     document.getElementById('content').innerHTML = `
       <div class="success">

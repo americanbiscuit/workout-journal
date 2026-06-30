@@ -92,6 +92,36 @@
   }
   .icon-btn:hover { color: var(--header-text); border-color: var(--accent); background: rgba(255, 122, 85, 0.15); }
   .icon-btn:active { transform: scale(0.95); }
+  .user-badge {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--header-border);
+    color: var(--header-text-2);
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .user-badge.impersonating {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+    cursor: pointer;
+  }
+  .user-badge .badge-label {
+    font-size: 9px;
+    opacity: 0.8;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .user-badge .badge-x {
+    margin-left: 4px;
+    font-weight: 700;
+    opacity: 0.85;
+  }
 
   /* ============ VIEW TOGGLE (in dark header) ============ */
   .view-toggle {
@@ -849,6 +879,7 @@
     <button id="monthViewBtn" onclick="setView('month')">Month</button>
   </div>
   <div class="header-actions">
+    <div id="userBadge"></div>
     <button class="icon-btn" onclick="openModal('settings')" title="Menu">≡</button>
   </div>
 </header>
@@ -1039,14 +1070,26 @@ const SHORT_DAY_NAMES = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
 const CATEGORY_LIST = ["Chest/Tri","Back/Bi","Shoulders","Abs","Legs"];
 
 // ============================================================
-// STATE — localStorage cache + Cloudflare D1 sync
+// AUTH + STATE — D1-backed with session cookie
 // ============================================================
 const STATE_KEY = 'workout-journal-v2';
 const LEGACY_KEY = 'workout-journal-v1';
-const API_BASE = '/api/workouts';
+let API_BASE = '/api/workouts';  // gets ?asUser= appended for admin impersonation
+let asUserId = null;             // admin impersonation target
+let currentUserObj = null;       // current logged-in user (admin if impersonating)
+let viewingUserObj = null;       // user whose workouts we're showing (= currentUserObj unless impersonating)
 
 let state = loadLocal();
 let syncEnabled = location.hostname !== '' && location.protocol !== 'file:';
+
+function apiUrl(path) {
+  // Append ?asUser= when admin is impersonating
+  if (asUserId) {
+    const sep = path.includes('?') ? '&' : '?';
+    return path + sep + 'asUser=' + asUserId;
+  }
+  return path;
+}
 
 function loadLocal() {
   const v2 = localStorage.getItem(STATE_KEY);
@@ -1081,45 +1124,85 @@ function persist() {
 // Push one workout to D1
 async function syncWorkout(w) {
   try {
-    const res = await fetch(`${API_BASE}/${w.date}`, {
+    const res = await fetch(apiUrl(`${API_BASE}/${w.date}`), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(w),
     });
+    if (res.status === 401) { location.href = '/login.html'; return; }
     if (!res.ok) console.warn('Sync failed', await res.text());
   } catch (e) { console.warn('Sync error', e); }
 }
 
-// On first load against the hosted site, pull all workouts from D1 and merge
 async function pullFromCloud() {
   if (!syncEnabled) return;
   try {
-    const res = await fetch(API_BASE);
+    const res = await fetch(apiUrl(API_BASE));
+    if (res.status === 401) { location.href = '/login.html'; return; }
     if (!res.ok) return;
     const { workouts } = await res.json();
     if (!workouts) return;
-    // Merge: cloud version wins on conflict (cloud is canonical)
-    const byDate = {};
-    state.workouts.forEach(w => { byDate[w.date] = w; });
-    workouts.forEach(w => { byDate[w.date] = w; });
-    state.workouts = Object.values(byDate).sort((a,b) => b.date.localeCompare(a.date));
+    // Replace local state with cloud state (since we're per-user now, no merging concerns)
+    state.workouts = workouts.sort((a,b) => b.date.localeCompare(a.date));
     persistLocal();
-    // If we had local data not in cloud, push it up
-    const cloudDates = new Set(workouts.map(w => w.date));
-    const onlyLocal = state.workouts.filter(w => !cloudDates.has(w.date) && !isEmpty(w));
-    if (onlyLocal.length) {
-      await fetch(API_BASE, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ workouts: onlyLocal }),
-      });
-    }
     // Re-render in case current view changed
     if (currentDate) loadWorkoutForDate(currentDate, currentWorkout?.category || DAY_TO_CATEGORY[new Date(currentDate+'T12:00:00').getDay()]);
     if (currentView === 'week') renderWeek();
+    if (currentView === 'month') renderMonth();
   } catch (e) {
     console.warn('Pull from cloud failed:', e);
   }
+}
+
+// On boot: check session, redirect if needed, set up impersonation if admin requested it
+async function initAuth() {
+  if (!syncEnabled) return true; // local file: skip auth
+  try {
+    const r = await fetch('/api/me');
+    const { user } = await r.json();
+    if (!user) { location.href = '/login.html'; return false; }
+    currentUserObj = user;
+    // Check for ?asUser= impersonation
+    const url = new URL(location.href);
+    const requestedAsUser = url.searchParams.get('asUser');
+    if (requestedAsUser && user.isAdmin) {
+      asUserId = parseInt(requestedAsUser);
+      // Get the target user's name
+      const ru = await fetch('/api/users');
+      if (ru.ok) {
+        const { users } = await ru.json();
+        viewingUserObj = users.find(u => u.id === asUserId);
+      }
+    } else {
+      viewingUserObj = user;
+    }
+    // Render user name in header
+    document.getElementById('userBadge').innerHTML = renderUserBadge();
+    return true;
+  } catch (e) {
+    console.error('Auth check failed:', e);
+    return false;
+  }
+}
+
+function renderUserBadge() {
+  if (!currentUserObj) return '';
+  const isImpersonating = asUserId && asUserId !== currentUserObj.id;
+  if (isImpersonating && viewingUserObj) {
+    return `<div class="user-badge impersonating" title="Click to exit impersonation" onclick="exitImpersonation()">
+      <span class="badge-label">Logging as</span> ${escapeHtml(viewingUserObj.name)} <span class="badge-x">✕</span>
+    </div>`;
+  }
+  return `<div class="user-badge" title="${escapeHtml(currentUserObj.username)}">${escapeHtml(currentUserObj.name)}</div>`;
+}
+function exitImpersonation() {
+  location.href = '/admin.html';
+}
+
+async function doLogout() {
+  await fetch('/api/logout', { method: 'POST' });
+  localStorage.removeItem(STATE_KEY);
+  location.href = '/login.html';
 }
 
 // ============================================================
@@ -1510,13 +1593,18 @@ function openModal(type, ...args) {
   } else if (type === 'settings') {
     title.textContent = 'Menu';
     search.innerHTML = ''; chips.innerHTML = '';
+    const adminLink = currentUserObj?.isAdmin
+      ? `<div class="menu-item" onclick="location.href='/admin.html'">Admin Portal <span class="meta">manage users</span></div>`
+      : '';
     body.innerHTML = `
+      ${adminLink}
       <div class="menu-item" onclick="openModal('claudePrompt')">Claude Prompt <span class="meta">log via AI</span></div>
       <div class="menu-item" onclick="openModal('split')">Weekly Split <span class="meta">view</span></div>
       <div class="menu-item" onclick="openModal('pool')">Exercise Pool <span class="meta">browse</span></div>
       <div class="menu-item" onclick="exportJSON()">Export Data <span class="meta">save backup</span></div>
       <div class="menu-item" onclick="document.getElementById('importInput').click()">Import Data <span class="meta">restore backup</span></div>
       <input type="file" id="importInput" accept=".json" style="display:none" onchange="importJSON(event)" />
+      <div class="menu-item" onclick="doLogout()">Sign out</div>
       <div class="menu-item danger" onclick="clearAll()">Clear All Data</div>
     `;
   } else if (type === 'claudePrompt') {
@@ -1721,7 +1809,8 @@ function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;'
 
 window.addEventListener('DOMContentLoaded', async () => {
   setDate(new Date().toISOString().slice(0, 10));
-  // Pull cloud data in the background (after initial render)
+  const ok = await initAuth();
+  if (!ok) return;
   pullFromCloud();
 });
 </script>

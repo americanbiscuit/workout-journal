@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#1F1B17" />
+<title>Admin — Workout Journal</title>
+<style>
+  :root {
+    --bg: #F1EBDF; --surface: #F8F4EC; --surface-alt: #E8E0D0; --border: #DBD2BF;
+    --border-soft: #E6DCC7;
+    --text: #2D2A26; --text-2: #6B6660; --muted: #A39E97;
+    --accent: #FF7A55; --accent-2: #5DAA80; --danger: #DC6E6E;
+    --header-bg: #1F1B17; --header-text: #F1EBDF; --header-text-2: #B0A89A;
+    --header-border: #2F2A24;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+    padding-bottom: 80px; }
+  header {
+    background: var(--header-bg); color: var(--header-text);
+    padding: 18px max(20px, env(safe-area-inset-right)) 18px max(20px, env(safe-area-inset-left));
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid var(--header-border);
+  }
+  .logo { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
+  .logo .dot { color: var(--accent); }
+  a.back { color: var(--header-text-2); text-decoration: none; font-size: 13px; font-weight: 600; }
+  a.back:hover { color: var(--header-text); }
+  main { max-width: 720px; margin: 0 auto; padding: 24px 20px; }
+  h1 { margin: 0 0 4px; font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+  .subtle { color: var(--text-2); font-size: 14px; margin-bottom: 24px; }
+  .section-header {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;
+  }
+  .section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 800; color: var(--text-2); }
+  button {
+    background: var(--accent); color: white; border: none;
+    padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 700;
+    cursor: pointer; font-family: inherit;
+  }
+  button.secondary { background: var(--surface-alt); color: var(--text); }
+  button.danger { background: var(--danger); }
+  button:hover { transform: translateY(-1px); }
+  .user-card {
+    background: var(--surface); border: 1px solid var(--border-soft);
+    border-radius: 14px; padding: 16px 18px; margin-bottom: 10px;
+  }
+  .user-row1 { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .user-name { font-size: 16px; font-weight: 700; }
+  .user-name .admin-tag {
+    background: var(--accent-2); color: white; font-size: 10px;
+    padding: 2px 8px; border-radius: 999px; margin-left: 8px;
+    text-transform: uppercase; letter-spacing: 0.5px; vertical-align: middle;
+  }
+  .user-name .disabled-tag {
+    background: var(--muted); color: white; font-size: 10px;
+    padding: 2px 8px; border-radius: 999px; margin-left: 8px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .user-meta { color: var(--text-2); font-size: 13px; }
+  .user-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .user-actions button { padding: 7px 12px; font-size: 12px; }
+  .empty { color: var(--text-2); text-align: center; padding: 40px 20px; font-size: 14px; }
+  .modal-bg {
+    position: fixed; inset: 0; background: rgba(45,42,38,0.45);
+    display: none; align-items: center; justify-content: center; z-index: 100;
+    padding: 20px;
+  }
+  .modal-bg.show { display: flex; }
+  .modal-card {
+    background: var(--surface); border-radius: 16px; padding: 24px;
+    width: 100%; max-width: 420px;
+  }
+  .modal-card h2 { margin: 0 0 16px; font-size: 18px; }
+  label { display: block; font-size: 11px; color: var(--text-2);
+    text-transform: uppercase; letter-spacing: 1.2px; font-weight: 700;
+    margin: 12px 0 4px; }
+  input[type=text], input[type=password] {
+    width: 100%; background: var(--surface-alt); border: 1.5px solid transparent;
+    color: var(--text); padding: 10px 12px; border-radius: 10px;
+    font-size: 15px; font-family: inherit; font-weight: 600;
+  }
+  input:focus { outline: none; border-color: var(--accent); background: white; }
+  .check-row { display: flex; align-items: center; gap: 8px; margin: 12px 0; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .modal-actions button { flex: 1; }
+  .err { color: var(--danger); font-size: 13px; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Journal<span class="dot">.</span> — Admin</div>
+  <a class="back" href="/">← back to my journal</a>
+</header>
+
+<main>
+  <h1>Users</h1>
+  <p class="subtle">Manage accounts, reset passwords, log in as someone to add workouts on their behalf.</p>
+
+  <div class="section-header">
+    <div class="section-title">All Accounts</div>
+    <button onclick="openCreate()">+ New User</button>
+  </div>
+
+  <div id="userList"></div>
+</main>
+
+<!-- CREATE / EDIT MODAL -->
+<div class="modal-bg" id="modalBg" onclick="if(event.target.id==='modalBg') closeModal()">
+  <div class="modal-card">
+    <h2 id="modalTitle">New User</h2>
+    <form onsubmit="event.preventDefault(); submitModal();">
+      <label>Display name</label>
+      <input type="text" id="mName" required />
+      <label id="mUsernameLabel">Username</label>
+      <input type="text" id="mUsername" autocapitalize="off" autocorrect="off" />
+      <label id="mPasswordLabel">Password (8+ chars)</label>
+      <input type="password" id="mPassword" minlength="8" />
+      <div class="check-row">
+        <input type="checkbox" id="mIsAdmin" />
+        <label for="mIsAdmin" style="display:inline; margin:0; text-transform:none; letter-spacing:normal; font-weight:600; font-size:14px; color:var(--text);">Admin (can manage users)</label>
+      </div>
+      <div id="mError" class="err" style="display:none"></div>
+      <div class="modal-actions">
+        <button type="button" class="secondary" onclick="closeModal()">Cancel</button>
+        <button type="submit" id="mSubmit">Create</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+let currentUser = null;
+let users = [];
+let editingUserId = null;
+
+async function init() {
+  const r = await fetch('/api/me');
+  const { user } = await r.json();
+  if (!user) { location.href = '/login.html'; return; }
+  if (!user.isAdmin) { alert('Admin only'); location.href = '/'; return; }
+  currentUser = user;
+  await loadUsers();
+}
+
+async function loadUsers() {
+  const r = await fetch('/api/users');
+  const data = await r.json();
+  users = data.users || [];
+  renderUsers();
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function renderUsers() {
+  const c = document.getElementById('userList');
+  if (!users.length) { c.innerHTML = '<div class="empty">No users yet.</div>'; return; }
+  c.innerHTML = users.map(u => `
+    <div class="user-card">
+      <div class="user-row1">
+        <div class="user-name">
+          ${escapeHtml(u.name)}
+          ${u.isAdmin ? '<span class="admin-tag">Admin</span>' : ''}
+          ${u.disabled ? '<span class="disabled-tag">Disabled</span>' : ''}
+        </div>
+      </div>
+      <div class="user-meta">
+        @${escapeHtml(u.username)} · ${u.workoutCount || 0} workouts
+        ${u.lastWorkout ? ` · last logged ${u.lastWorkout}` : ' · no workouts yet'}
+      </div>
+      <div class="user-actions">
+        ${u.id !== currentUser.id ? `<button class="secondary" onclick="logInAs(${u.id}, '${escapeHtml(u.name)}')">Log workouts as ${escapeHtml(u.name.split(' ')[0])}</button>` : ''}
+        <button class="secondary" onclick="openEdit(${u.id})">Edit</button>
+        ${u.id !== currentUser.id ? `<button class="danger" onclick="deleteUser(${u.id}, '${escapeHtml(u.name)}')">Delete</button>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function openCreate() {
+  editingUserId = null;
+  document.getElementById('modalTitle').textContent = 'New User';
+  document.getElementById('mName').value = '';
+  document.getElementById('mUsername').value = '';
+  document.getElementById('mPassword').value = '';
+  document.getElementById('mIsAdmin').checked = false;
+  document.getElementById('mPasswordLabel').textContent = 'Password (8+ chars)';
+  document.getElementById('mPassword').required = true;
+  document.getElementById('mUsername').required = true;
+  document.getElementById('mUsername').disabled = false;
+  document.getElementById('mSubmit').textContent = 'Create';
+  document.getElementById('mError').style.display = 'none';
+  document.getElementById('modalBg').classList.add('show');
+}
+
+function openEdit(id) {
+  const u = users.find(x => x.id === id);
+  editingUserId = id;
+  document.getElementById('modalTitle').textContent = 'Edit User';
+  document.getElementById('mName').value = u.name;
+  document.getElementById('mUsername').value = u.username;
+  document.getElementById('mUsername').disabled = true;
+  document.getElementById('mPassword').value = '';
+  document.getElementById('mPassword').required = false;
+  document.getElementById('mIsAdmin').checked = u.isAdmin;
+  document.getElementById('mPasswordLabel').textContent = 'New password (leave blank to keep current)';
+  document.getElementById('mSubmit').textContent = 'Save';
+  document.getElementById('mError').style.display = 'none';
+  document.getElementById('modalBg').classList.add('show');
+}
+
+function closeModal() { document.getElementById('modalBg').classList.remove('show'); }
+
+async function submitModal() {
+  const err = document.getElementById('mError');
+  err.style.display = 'none';
+  const name = document.getElementById('mName').value;
+  const username = document.getElementById('mUsername').value;
+  const password = document.getElementById('mPassword').value;
+  const isAdmin = document.getElementById('mIsAdmin').checked;
+  try {
+    let r;
+    if (editingUserId) {
+      const body = { name, isAdmin };
+      if (password) body.password = password;
+      r = await fetch(`/api/users/${editingUserId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+    } else {
+      r = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, username, password, isAdmin })
+      });
+    }
+    if (!r.ok) { const { error } = await r.json(); throw new Error(error || 'Failed'); }
+    closeModal();
+    await loadUsers();
+  } catch (e) {
+    err.textContent = e.message;
+    err.style.display = 'block';
+  }
+}
+
+async function deleteUser(id, name) {
+  if (!confirm(`Disable ${name}'s account? Their workouts will be preserved.`)) return;
+  const r = await fetch(`/api/users/${id}`, { method: 'DELETE' });
+  if (!r.ok) { alert('Delete failed'); return; }
+  await loadUsers();
+}
+
+function logInAs(id, name) {
+  // Opens the journal in admin-impersonate mode (?asUser=ID)
+  // The main app sees this and routes all writes/reads through the impersonated user.
+  if (confirm(`Add workouts as ${name}? You'll see their journal and any changes you make are saved to their account.`)) {
+    location.href = `/?asUser=${id}`;
+  }
+}
+
+init();
+</script>
+</body>
+</html>
