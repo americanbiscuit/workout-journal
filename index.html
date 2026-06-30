@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Workout Journal</title>
+<style>
+  :root {
+    --bg: #0f1216;
+    --panel: #181d24;
+    --panel-2: #1f252e;
+    --border: #2a323d;
+    --text: #e6ebf3;
+    --muted: #8b97a8;
+    --accent: #ff7a3d;
+    --accent-2: #4dd5b5;
+    --danger: #e75463;
+    --shadow: 0 6px 20px rgba(0,0,0,0.35);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.4;
+  }
+  header {
+    background: linear-gradient(180deg, #1a2028, #14191f);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  h1 {
+    margin: 0;
+    font-size: 22px;
+    letter-spacing: -0.5px;
+  }
+  h1 span { color: var(--accent); }
+  .header-actions { display: flex; gap: 8px; }
+  nav {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--border);
+    padding: 0 20px;
+    background: #131820;
+    overflow-x: auto;
+  }
+  nav button {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    padding: 14px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+  }
+  nav button:hover { color: var(--text); }
+  nav button.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  main {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 24px 20px 80px;
+  }
+  .tab { display: none; }
+  .tab.active { display: block; }
+
+  /* Cards / panels */
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+  .card h2 {
+    margin: 0 0 12px;
+    font-size: 16px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--accent);
+  }
+  .card h3 {
+    margin: 18px 0 8px;
+    font-size: 14px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  @media (min-width: 700px) {
+    .row.am-row { grid-template-columns: 2fr 70px 70px 90px 1fr 32px; }
+    .row.metcon-row { grid-template-columns: 2fr 90px 32px; }
+  }
+  input, select, textarea {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  textarea { resize: vertical; min-height: 60px; }
+  label {
+    font-size: 12px;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 4px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  button.btn {
+    background: var(--accent);
+    border: none;
+    color: #fff;
+    padding: 10px 18px;
+    font-weight: 700;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.15s;
+  }
+  button.btn:hover { background: #ff8d57; }
+  button.btn.secondary {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  button.btn.secondary:hover { background: #2a313a; }
+  button.btn.danger { background: var(--danger); }
+  button.btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 6px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  button.btn-ghost:hover { color: var(--text); border-color: var(--accent); }
+  button.btn-remove {
+    background: transparent;
+    border: none;
+    color: var(--danger);
+    cursor: pointer;
+    font-size: 18px;
+    padding: 0;
+  }
+  .footer-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+  }
+
+  /* Day badge */
+  .day-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .day-badge.alt { background: var(--accent-2); color: #0f1216; }
+
+  /* History */
+  .history-item {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .history-item:hover { border-color: var(--accent); }
+  .history-meta {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .history-meta strong { font-size: 16px; }
+  .history-summary {
+    margin-top: 6px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  /* Exercise pool */
+  .pool-category {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+  .pool-header {
+    padding: 12px 16px;
+    background: var(--panel-2);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .pool-header strong { color: var(--accent); }
+  .pool-list {
+    padding: 14px 16px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 6px 18px;
+  }
+  .pool-list span {
+    font-size: 14px;
+    color: var(--text);
+    padding: 4px 0;
+    border-bottom: 1px dotted #252b35;
+  }
+
+  /* Weekly split */
+  .week-grid {
+    display: grid;
+    gap: 10px;
+  }
+  .week-day {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .week-day h3 {
+    margin: 0 0 8px;
+    color: var(--accent);
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .week-day .row-info {
+    display: flex;
+    gap: 18px;
+    color: var(--muted);
+    font-size: 13px;
+    flex-wrap: wrap;
+  }
+  .week-day .row-info b { color: var(--text); }
+
+  /* Stats */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .stat {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 14px;
+    border-radius: 8px;
+    text-align: center;
+  }
+  .stat .v {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--accent);
+  }
+  .stat .l {
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 4px;
+  }
+
+  details summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 13px;
+    padding: 6px 0;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>💪 Workout <span>Journal</span></h1>
+  <div class="header-actions">
+    <button class="btn-ghost" onclick="exportJSON()">Export</button>
+    <button class="btn-ghost" onclick="document.getElementById('importFile').click()">Import</button>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)" />
+  </div>
+</header>
+
+<nav>
+  <button class="active" onclick="showTab('today', this)">Today</button>
+  <button onclick="showTab('history', this)">History</button>
+  <button onclick="showTab('pool', this)">Exercise Pool</button>
+  <button onclick="showTab('split', this)">Weekly Split</button>
+</nav>
+
+<main>
+
+  <!-- TODAY TAB -->
+  <div id="tab-today" class="tab active">
+    <div class="card">
+      <div class="meta-grid">
+        <div>
+          <label>Date</label>
+          <input type="date" id="entryDate" onchange="updateDayDisplay()" />
+        </div>
+        <div>
+          <label>Day Focus</label>
+          <select id="dayCategory" onchange="updateForCategory()">
+            <option value="Chest/Tri">Mon — Chest/Tri</option>
+            <option value="Back/Bi">Tue — Back/Bi</option>
+            <option value="Shoulders">Wed — Shoulders</option>
+            <option value="Abs">Thu — Abs</option>
+            <option value="Legs">Fri — Legs</option>
+          </select>
+        </div>
+        <div>
+          <label>Body Weight (lbs)</label>
+          <input type="number" id="bodyWeight" placeholder="—" />
+        </div>
+        <div>
+          <label>Sleep (hrs)</label>
+          <input type="number" step="0.5" id="sleep" placeholder="—" />
+        </div>
+        <div>
+          <label>Energy (1-10)</label>
+          <input type="number" min="1" max="10" id="energy" placeholder="—" />
+        </div>
+      </div>
+    </div>
+
+    <!-- AM STRENGTH -->
+    <div class="card">
+      <h2>🌅 AM — Strength <span id="amCategoryLabel" class="day-badge"></span></h2>
+      <p style="color:var(--muted); font-size:13px; margin:0 0 12px;">Machine + DB. Pick from the strength pool for the day.</p>
+      <div id="amExercises"></div>
+      <button class="btn secondary" onclick="addExerciseRow('am')">+ Add Exercise</button>
+      <label style="margin-top:14px; display:block">AM Notes</label>
+      <textarea id="amNotes" placeholder="Form notes, fatigue, what felt heavy/light, etc."></textarea>
+    </div>
+
+    <!-- PM CARDIO + METCON -->
+    <div class="card">
+      <h2>☀️ PM — Cardio + Metcon <span class="day-badge alt">Supplement</span></h2>
+
+      <h3>Cardio</h3>
+      <div class="meta-grid">
+        <div>
+          <label>Type</label>
+          <select id="cardioType">
+            <option>Run</option><option>Walk</option><option>Run/Walk</option>
+            <option>Bike</option><option>Row</option><option>Other</option>
+          </select>
+        </div>
+        <div>
+          <label>Distance (mi)</label>
+          <input type="number" step="0.1" id="cardioDist" value="2" />
+        </div>
+        <div>
+          <label>Time (min)</label>
+          <input type="number" step="0.1" id="cardioTime" />
+        </div>
+        <div>
+          <label>Avg HR (optional)</label>
+          <input type="number" id="cardioHR" placeholder="—" />
+        </div>
+      </div>
+
+      <h3>Metcon Circuit</h3>
+      <div class="meta-grid">
+        <div>
+          <label>Rounds Completed</label>
+          <input type="number" id="metconRounds" />
+        </div>
+        <div>
+          <label>Total Time (min)</label>
+          <input type="number" step="0.5" id="metconTime" />
+        </div>
+        <div>
+          <label>RPE (1-10)</label>
+          <input type="number" min="1" max="10" id="metconRPE" />
+        </div>
+      </div>
+      <div id="metconExercises"></div>
+      <button class="btn secondary" onclick="addExerciseRow('metcon')">+ Add Exercise</button>
+      <label style="margin-top:14px; display:block">PM Notes</label>
+      <textarea id="pmNotes" placeholder="What hit hard, what to dial in next session, etc."></textarea>
+    </div>
+
+    <div class="footer-actions">
+      <button class="btn" onclick="saveWorkout()">💾 Save Workout</button>
+      <button class="btn secondary" onclick="resetForm()">Reset Form</button>
+    </div>
+  </div>
+
+  <!-- HISTORY TAB -->
+  <div id="tab-history" class="tab">
+    <div class="stat-grid" id="statGrid"></div>
+    <div id="historyList"></div>
+  </div>
+
+  <!-- POOL TAB -->
+  <div id="tab-pool" class="tab">
+    <p style="color:var(--muted)">Tap to expand. AM-focused = strength/heavier movements. PM-focused = endurance/bodyweight/supplement work that pairs with crossfit-style metcon.</p>
+    <div id="poolContainer"></div>
+  </div>
+
+  <!-- SPLIT TAB -->
+  <div id="tab-split" class="tab">
+    <div class="card">
+      <h2>📅 Weekly Split</h2>
+      <p style="color:var(--muted); margin: 0 0 14px;">AM strength (machine/DB only) → PM 2mi run/walk + supplement-flavored metcon.</p>
+      <div class="week-grid" id="weekGrid"></div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ============================================================
+// EXERCISE POOL
+// Big pool per category, organized by AM (strength) vs PM (supplement/endurance)
+// All AM is machine + DB only (no bench, no squat rack in AM). RDLs OK.
+// ============================================================
+const POOL = {
+  "Chest/Tri": {
+    am: [
+      "Machine Chest Press", "Cable Chest Press", "Incline DB Press", "Flat DB Press",
+      "Decline DB Press", "DB Chest Fly", "Cable Fly (High)", "Cable Fly (Mid)",
+      "Cable Fly (Low)", "Pec Deck Machine", "Single-Arm DB Press",
+      "Tricep Pushdown (Bar)", "Tricep Pushdown (Rope)", "Overhead Cable Tricep Extension",
+      "DB Skull Crushers", "DB Tricep Kickback", "Overhead DB Tricep Extension",
+      "Single-Arm DB Tricep Extension", "Tate Press", "Close-Grip DB Press",
+      "JM Press (DB)", "Cable Single-Arm Pushdown"
+    ],
+    pm: [
+      "Standard Pushups", "Diamond Pushups", "Wide Pushups", "Decline Pushups",
+      "Incline Pushups", "Archer Pushups", "Hindu Pushups", "Pseudo Planche Pushups",
+      "Plyo Pushups", "Clap Pushups", "Spider-Man Pushups", "T-Pushups",
+      "Parallel Bar Dips", "Ring Dips", "Bench Dips", "Burpees",
+      "Tricep Pushdown Burnout (light)", "Pike Pushups (tri bias)", "Pushup-to-Plank Taps",
+      "Explosive Pushups (off blocks)"
+    ]
+  },
+  "Back/Bi": {
+    am: [
+      "Lat Pulldown (Wide)", "Lat Pulldown (Close-Grip)", "Lat Pulldown (Neutral)",
+      "Cable Row (High)", "Cable Row (Mid)", "Cable Row (Low)", "Single-Arm Cable Row",
+      "Machine Row (Iso)", "T-Bar Row (Machine)", "DB One-Arm Row (Bench Supported)",
+      "Chest-Supported DB Row", "DB High Pull", "Reverse Pec Deck", "Face Pulls",
+      "Straight-Arm Pulldown", "DB Shrugs", "Cable Shrugs",
+      "DB Curls", "Hammer Curls", "Concentration Curls", "Preacher Curl Machine",
+      "Cable Curls (Bar)", "Cable Curls (Rope)", "Incline DB Curls", "Spider Curls",
+      "21s", "Drag Curls", "Cross-Body Hammer Curls", "Zottman Curls"
+    ],
+    pm: [
+      "Pull-ups", "Chin-ups", "Neutral-Grip Pull-ups", "Inverted Rows (TRX)",
+      "Inverted Rows (Bar)", "Pushup Rows (Renegade)", "Scapula Pulls",
+      "Dead Hangs (timed)", "Chin Hold Isometric (top)", "Australian Pull-ups",
+      "Towel Rows", "DB Curl Burnout (light)", "Hammer Curl Burnout (light)",
+      "Cable Curl 21s", "Band Pull-aparts", "Face Pull Burnout"
+    ]
+  },
+  "Shoulders": {
+    am: [
+      "Machine Shoulder Press", "Seated DB Shoulder Press", "Standing DB Press",
+      "Arnold Press", "Single-Arm DB Press", "DB Lateral Raise", "Cable Lateral Raise",
+      "Machine Lateral Raise", "DB Front Raise", "Cable Front Raise", "Plate Front Raise",
+      "DB Rear Delt Fly", "Reverse Pec Deck", "Cable Rear Delt Cross",
+      "Face Pulls", "Cable Y-Raise", "Cable W-Raise", "DB Shrugs", "Cuban Press",
+      "Around-the-Worlds", "Bottoms-Up KB/DB Press", "DB Z-Press (seated)"
+    ],
+    pm: [
+      "Pike Pushups", "Decline Pike Pushups", "Wall Walks", "Wall Handstand Hold",
+      "Plank Shoulder Taps", "Lateral Raise Burnout (very light)", "Bear Crawls",
+      "Crab Walks", "Plank-to-Down-Dog", "Plate Shoulder Circles", "Shoulder Tap Pushups",
+      "Pushup-to-Pike", "Cable Lateral Iso Hold"
+    ]
+  },
+  "Abs": {
+    am: [
+      "Cable Crunches", "Weighted Decline Situps", "Ab Wheel Rollouts",
+      "Hanging Leg Raises", "Hanging Knee Raises", "Captain's Chair Leg Raises",
+      "Russian Twists (Weighted)", "Plank w/ Plate", "Side Plank w/ Weight",
+      "Bird Dog", "DB Side Bends", "Pallof Press (Cable)",
+      "Cable Wood Chops (High/Low)", "Standing Cable Crunch", "Stir-the-Pot (ab wheel)",
+      "Weighted V-Ups"
+    ],
+    pm: [
+      "V-Ups", "Hollow Holds", "Hollow Rocks", "Bicycle Crunches",
+      "Mountain Climbers", "Plank (standard)", "Side Plank", "RKC Plank",
+      "Toes-to-Bar", "Knees-to-Elbows", "Dragon Flags", "Windshield Wipers",
+      "L-Sit Hold", "Russian Twists (BW)", "Reverse Crunches",
+      "Flutter Kicks", "Scissor Kicks", "Plank Up-Downs", "Mountain Climbers (Cross-Body)"
+    ]
+  },
+  "Legs": {
+    am: [
+      "Leg Press", "Leg Curls (Seated)", "Leg Curls (Lying)", "Leg Extensions",
+      "Hack Squat Machine", "DB Goblet Squat", "DB Walking Lunges", "DB Reverse Lunges",
+      "DB Step-Ups", "Bulgarian Split Squat (DB)", "DB Sumo Squat",
+      "DB Romanian Deadlift", "DB Single-Leg RDL", "Hip Thrust (Machine)",
+      "DB Hip Thrust", "Glute Kickback Machine", "Cable Kickbacks",
+      "Hip Abduction Machine", "Hip Adduction Machine",
+      "Standing Calf Raise (DB)", "Seated Calf Raise (Machine)", "Single-Leg Calf Raise (DB)"
+    ],
+    pm: [
+      "Bulgarian Split Squat Jumps", "Box Jumps", "Broad Jumps", "Jump Squats",
+      "Tuck Jumps", "Lateral Box Jumps", "Lateral Bounds", "Skater Jumps",
+      "Single-Leg Hops", "Walking Lunges (BW, long distance)", "Reverse Lunges (BW)",
+      "Cossack Squats", "Sissy Squats", "Bulgarian Split Squats (BW)",
+      "Wall Sits (timed)", "Pistol Squat Progressions", "Step-Ups (high rep, BW)",
+      "Calf Raise Burnout"
+    ]
+  },
+  // Universal metcon flavor — full-body cardio that goes on any day
+  "Metcon Cardio (any day)": {
+    am: [],
+    pm: [
+      "Box Jumps", "Ball Slams", "Broad Jumps", "Burpees", "Mountain Climbers",
+      "Battle Ropes", "Rowing Erg (sprint)", "Assault Bike (sprint)",
+      "Jump Rope (singles)", "Jump Rope (double-unders)",
+      "Bear Crawls", "Crab Walks", "Farmer Carry", "Sled Push", "Sled Pull",
+      "Devil Press", "Thruster (DB)"
+    ]
+  }
+};
+
+// Day → category mapping (for auto-select)
+const DAY_TO_CATEGORY = {
+  Monday: "Chest/Tri",
+  Tuesday: "Back/Bi",
+  Wednesday: "Shoulders",
+  Thursday: "Abs",
+  Friday: "Legs",
+  Saturday: "Abs",  // variable
+  Sunday: "Abs"     // variable
+};
+
+const WEEK_DESC = [
+  { day: "Monday",    cat: "Chest/Tri",  am: "Machine chest press · DB flys · tricep pushdowns · skull crushers · abs", pm: "2mi run/walk → Pushups · dips · plyo pushups · ball slams · box jumps" },
+  { day: "Tuesday",   cat: "Back/Bi",    am: "Pulldowns · cable rows · DB rows · curl variations · abs", pm: "2mi run/walk → Pushup rows · body rows · scapula ups · chin holds · broad jumps" },
+  { day: "Wednesday", cat: "Shoulders",  am: "Machine OHP · DB lateral · front raises · rear delts · abs", pm: "2mi run/walk → Pike pushups · wall walks · shoulder taps · lateral burnout · box jumps" },
+  { day: "Thursday",  cat: "Abs",        am: "Cable crunches · hanging leg raises · ab wheel · weighted situps · plank work", pm: "2mi run/walk → V-ups · dragon flags · ab wheel · plus broad jumps + ball slams" },
+  { day: "Friday",    cat: "Legs",       am: "Leg press · leg curls · leg extensions · DB lunges/RDL · abs", pm: "2mi run/walk → BSS jumps · box jumps · broad jumps · jump squats · ball slams" }
+];
+
+// ============================================================
+// STATE / PERSISTENCE
+// ============================================================
+const STATE_KEY = 'workout-journal-v1';
+let state = JSON.parse(localStorage.getItem(STATE_KEY) || '{"workouts":[]}');
+function persist() { localStorage.setItem(STATE_KEY, JSON.stringify(state)); }
+
+// ============================================================
+// TAB SWITCHING
+// ============================================================
+function showTab(name, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'history') renderHistory();
+  if (name === 'pool') renderPool();
+  if (name === 'split') renderSplit();
+}
+
+// ============================================================
+// EXERCISE ROWS
+// ============================================================
+function addExerciseRow(kind, prefill = null) {
+  const container = document.getElementById(kind === 'am' ? 'amExercises' : 'metconExercises');
+  const div = document.createElement('div');
+  const category = document.getElementById('dayCategory').value;
+  const poolKey = kind === 'am' ? 'am' : 'pm';
+  const dayPool = POOL[category]?.[poolKey] || [];
+  const metconPool = POOL["Metcon Cardio (any day)"].pm;
+  const options = kind === 'am'
+    ? dayPool
+    : [...new Set([...dayPool, ...metconPool])];
+
+  if (kind === 'am') {
+    div.className = 'row am-row';
+    div.innerHTML = `
+      <input list="amlist-${Date.now()}" placeholder="Exercise" value="${prefill?.name || ''}" />
+      <input type="number" placeholder="Sets" value="${prefill?.sets || ''}" />
+      <input type="number" placeholder="Reps" value="${prefill?.reps || ''}" />
+      <input type="number" placeholder="Weight" value="${prefill?.weight || ''}" />
+      <input type="text" placeholder="Notes" value="${prefill?.notes || ''}" />
+      <button class="btn-remove" onclick="this.parentNode.remove()" title="Remove">✕</button>
+    `;
+    // Add datalist for autocomplete
+    const dl = document.createElement('datalist');
+    dl.id = `amlist-${Date.now()}`;
+    options.forEach(o => {
+      const opt = document.createElement('option');
+      opt.value = o;
+      dl.appendChild(opt);
+    });
+    div.querySelector('input').setAttribute('list', dl.id);
+    div.appendChild(dl);
+  } else {
+    div.className = 'row metcon-row';
+    const dlId = `metconlist-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
+    div.innerHTML = `
+      <input list="${dlId}" placeholder="Exercise (e.g. Pushups)" value="${prefill?.name || ''}" />
+      <input type="number" placeholder="Reps/round" value="${prefill?.reps || ''}" />
+      <button class="btn-remove" onclick="this.parentNode.remove()" title="Remove">✕</button>
+    `;
+    const dl = document.createElement('datalist');
+    dl.id = dlId;
+    options.forEach(o => {
+      const opt = document.createElement('option');
+      opt.value = o;
+      dl.appendChild(opt);
+    });
+    div.appendChild(dl);
+  }
+  container.appendChild(div);
+}
+
+// ============================================================
+// FORM HELPERS
+// ============================================================
+function updateDayDisplay() {
+  const date = document.getElementById('entryDate').value;
+  if (!date) return;
+  const d = new Date(date + 'T12:00:00');
+  const dayName = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()];
+  const cat = DAY_TO_CATEGORY[dayName] || 'Chest/Tri';
+  document.getElementById('dayCategory').value = cat;
+  updateForCategory();
+}
+
+function updateForCategory() {
+  const cat = document.getElementById('dayCategory').value;
+  document.getElementById('amCategoryLabel').textContent = cat;
+}
+
+function resetForm() {
+  if (!confirm("Reset the form? Unsaved entries will be lost.")) return;
+  document.getElementById('amExercises').innerHTML = '';
+  document.getElementById('metconExercises').innerHTML = '';
+  document.getElementById('amNotes').value = '';
+  document.getElementById('pmNotes').value = '';
+  document.getElementById('bodyWeight').value = '';
+  document.getElementById('sleep').value = '';
+  document.getElementById('energy').value = '';
+  document.getElementById('cardioDist').value = '2';
+  document.getElementById('cardioTime').value = '';
+  document.getElementById('cardioHR').value = '';
+  document.getElementById('metconRounds').value = '';
+  document.getElementById('metconTime').value = '';
+  document.getElementById('metconRPE').value = '';
+  // Add a starter row to each
+  addExerciseRow('am');
+  addExerciseRow('metcon');
+}
+
+function collectExercises(kind) {
+  const container = document.getElementById(kind === 'am' ? 'amExercises' : 'metconExercises');
+  const rows = container.querySelectorAll('.row');
+  const out = [];
+  rows.forEach(r => {
+    const inputs = r.querySelectorAll('input');
+    if (kind === 'am') {
+      const [name, sets, reps, weight, notes] = inputs;
+      if (name.value.trim()) {
+        out.push({
+          name: name.value.trim(),
+          sets: parseInt(sets.value) || null,
+          reps: parseInt(reps.value) || null,
+          weight: parseFloat(weight.value) || null,
+          notes: notes.value.trim()
+        });
+      }
+    } else {
+      const [name, reps] = inputs;
+      if (name.value.trim()) {
+        out.push({
+          name: name.value.trim(),
+          reps: parseInt(reps.value) || null
+        });
+      }
+    }
+  });
+  return out;
+}
+
+function saveWorkout() {
+  const date = document.getElementById('entryDate').value;
+  if (!date) { alert("Pick a date first."); return; }
+  const entry = {
+    date,
+    category: document.getElementById('dayCategory').value,
+    bodyWeight: parseFloat(document.getElementById('bodyWeight').value) || null,
+    sleep: parseFloat(document.getElementById('sleep').value) || null,
+    energy: parseInt(document.getElementById('energy').value) || null,
+    am: {
+      exercises: collectExercises('am'),
+      notes: document.getElementById('amNotes').value.trim()
+    },
+    pm: {
+      cardio: {
+        type: document.getElementById('cardioType').value,
+        distance: parseFloat(document.getElementById('cardioDist').value) || null,
+        time: parseFloat(document.getElementById('cardioTime').value) || null,
+        hr: parseInt(document.getElementById('cardioHR').value) || null
+      },
+      metcon: {
+        rounds: parseInt(document.getElementById('metconRounds').value) || null,
+        time: parseFloat(document.getElementById('metconTime').value) || null,
+        rpe: parseInt(document.getElementById('metconRPE').value) || null,
+        exercises: collectExercises('metcon')
+      },
+      notes: document.getElementById('pmNotes').value.trim()
+    },
+    savedAt: new Date().toISOString()
+  };
+  // Upsert by date
+  const existing = state.workouts.findIndex(w => w.date === date);
+  if (existing >= 0) {
+    if (!confirm(`A workout already exists for ${date}. Overwrite it?`)) return;
+    state.workouts[existing] = entry;
+  } else {
+    state.workouts.push(entry);
+  }
+  state.workouts.sort((a,b) => b.date.localeCompare(a.date));
+  persist();
+  alert("Workout saved ✓");
+}
+
+// ============================================================
+// HISTORY
+// ============================================================
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  const stats = document.getElementById('statGrid');
+  if (state.workouts.length === 0) {
+    list.innerHTML = '<p style="color:var(--muted)">No workouts logged yet. Save one from the Today tab.</p>';
+    stats.innerHTML = '';
+    return;
+  }
+  // Stats
+  const total = state.workouts.length;
+  const byCat = {};
+  let totalMiles = 0;
+  state.workouts.forEach(w => {
+    byCat[w.category] = (byCat[w.category] || 0) + 1;
+    if (w.pm?.cardio?.distance) totalMiles += w.pm.cardio.distance;
+  });
+  const last7 = state.workouts.filter(w => {
+    const d = new Date(w.date + 'T12:00:00');
+    return (Date.now() - d.getTime()) <= 7 * 86400000;
+  }).length;
+  stats.innerHTML = `
+    <div class="stat"><div class="v">${total}</div><div class="l">Total Workouts</div></div>
+    <div class="stat"><div class="v">${last7}</div><div class="l">Last 7 Days</div></div>
+    <div class="stat"><div class="v">${totalMiles.toFixed(1)}</div><div class="l">Total Miles</div></div>
+    <div class="stat"><div class="v">${Object.keys(byCat).length}</div><div class="l">Categories Hit</div></div>
+  `;
+  // History list
+  list.innerHTML = state.workouts.map((w, i) => {
+    const amCount = w.am?.exercises?.length || 0;
+    const pmCount = w.pm?.metcon?.exercises?.length || 0;
+    const miles = w.pm?.cardio?.distance ? `${w.pm.cardio.distance}mi` : '—';
+    return `
+      <div class="history-item" onclick="toggleDetail(${i})">
+        <div class="history-meta">
+          <strong>${w.date}</strong>
+          <span class="day-badge">${w.category}</span>
+          ${w.energy ? `<span style="color:var(--muted)">Energy ${w.energy}/10</span>` : ''}
+        </div>
+        <div class="history-summary">
+          AM: ${amCount} lifts &nbsp;·&nbsp; PM: ${miles} + ${pmCount} metcon
+          ${w.pm?.metcon?.rounds ? ` (${w.pm.metcon.rounds} rounds @ RPE ${w.pm.metcon.rpe || '?'})` : ''}
+        </div>
+        <div id="detail-${i}" style="display:none; margin-top:12px; padding-top:12px; border-top:1px solid var(--border);">
+          ${renderWorkoutDetail(w)}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleDetail(i) {
+  const el = document.getElementById('detail-' + i);
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function renderWorkoutDetail(w) {
+  const am = w.am?.exercises?.map(e =>
+    `<li>${e.name}: ${e.sets || '?'}×${e.reps || '?'}${e.weight ? ' @ ' + e.weight + 'lbs' : ''}${e.notes ? ' — ' + e.notes : ''}</li>`
+  ).join('') || '<li>none</li>';
+  const pm = w.pm?.metcon?.exercises?.map(e =>
+    `<li>${e.name}${e.reps ? ' × ' + e.reps : ''}</li>`
+  ).join('') || '<li>none</li>';
+  return `
+    <h3>AM Strength</h3><ul>${am}</ul>
+    ${w.am?.notes ? `<p style="color:var(--muted);font-size:13px"><em>${w.am.notes}</em></p>` : ''}
+    <h3>PM Cardio</h3><p>${w.pm.cardio.type}: ${w.pm.cardio.distance || '?'}mi in ${w.pm.cardio.time || '?'} min ${w.pm.cardio.hr ? '(HR ' + w.pm.cardio.hr + ')' : ''}</p>
+    <h3>PM Metcon</h3><ul>${pm}</ul>
+    <p style="color:var(--muted);font-size:13px">${w.pm.metcon.rounds || '?'} rounds in ${w.pm.metcon.time || '?'} min — RPE ${w.pm.metcon.rpe || '?'}/10</p>
+    ${w.pm?.notes ? `<p style="color:var(--muted);font-size:13px"><em>${w.pm.notes}</em></p>` : ''}
+    <div style="margin-top:10px"><button class="btn-ghost" onclick="loadWorkoutIntoForm('${w.date}')">↺ Load into Today form</button> <button class="btn-ghost" onclick="deleteWorkout('${w.date}')">🗑 Delete</button></div>
+  `;
+}
+
+function deleteWorkout(date) {
+  if (!confirm(`Delete the workout for ${date}?`)) return;
+  state.workouts = state.workouts.filter(w => w.date !== date);
+  persist();
+  renderHistory();
+}
+
+function loadWorkoutIntoForm(date) {
+  const w = state.workouts.find(w => w.date === date);
+  if (!w) return;
+  document.getElementById('entryDate').value = w.date;
+  document.getElementById('dayCategory').value = w.category;
+  document.getElementById('bodyWeight').value = w.bodyWeight ?? '';
+  document.getElementById('sleep').value = w.sleep ?? '';
+  document.getElementById('energy').value = w.energy ?? '';
+  document.getElementById('cardioType').value = w.pm.cardio.type;
+  document.getElementById('cardioDist').value = w.pm.cardio.distance ?? '';
+  document.getElementById('cardioTime').value = w.pm.cardio.time ?? '';
+  document.getElementById('cardioHR').value = w.pm.cardio.hr ?? '';
+  document.getElementById('metconRounds').value = w.pm.metcon.rounds ?? '';
+  document.getElementById('metconTime').value = w.pm.metcon.time ?? '';
+  document.getElementById('metconRPE').value = w.pm.metcon.rpe ?? '';
+  document.getElementById('amNotes').value = w.am.notes || '';
+  document.getElementById('pmNotes').value = w.pm.notes || '';
+  document.getElementById('amExercises').innerHTML = '';
+  document.getElementById('metconExercises').innerHTML = '';
+  w.am.exercises.forEach(e => addExerciseRow('am', e));
+  w.pm.metcon.exercises.forEach(e => addExerciseRow('metcon', e));
+  updateForCategory();
+  showTab('today', document.querySelector('nav button'));
+}
+
+// ============================================================
+// POOL TAB
+// ============================================================
+function renderPool() {
+  const c = document.getElementById('poolContainer');
+  c.innerHTML = Object.entries(POOL).map(([cat, data]) => `
+    <details class="pool-category" open>
+      <summary class="pool-header"><strong>${cat}</strong> <span style="color:var(--muted);font-size:12px">${(data.am.length + data.pm.length)} exercises</span></summary>
+      ${data.am.length ? `
+        <div style="padding: 10px 16px 0; color:var(--accent-2); font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase">AM — Strength (machine/DB)</div>
+        <div class="pool-list">${data.am.map(e => `<span>• ${e}</span>`).join('')}</div>
+      ` : ''}
+      ${data.pm.length ? `
+        <div style="padding: 10px 16px 0; color:var(--accent); font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase">PM — Endurance / Supplement</div>
+        <div class="pool-list">${data.pm.map(e => `<span>• ${e}</span>`).join('')}</div>
+      ` : ''}
+    </details>
+  `).join('');
+}
+
+// ============================================================
+// WEEKLY SPLIT TAB
+// ============================================================
+function renderSplit() {
+  const g = document.getElementById('weekGrid');
+  g.innerHTML = WEEK_DESC.map(d => `
+    <div class="week-day">
+      <h3>${d.day} · ${d.cat}</h3>
+      <div class="row-info"><span><b>AM:</b> ${d.am}</span></div>
+      <div class="row-info" style="margin-top:6px"><span><b>PM:</b> ${d.pm}</span></div>
+    </div>
+  `).join('');
+}
+
+// ============================================================
+// IMPORT / EXPORT
+// ============================================================
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `workout-journal-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+}
+
+function importJSON(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const imported = JSON.parse(e.target.result);
+      if (!imported.workouts) throw new Error("Missing 'workouts' field");
+      if (!confirm(`Import ${imported.workouts.length} workouts? This will REPLACE current data.`)) return;
+      state = imported;
+      persist();
+      alert("Import successful.");
+      renderHistory();
+    } catch (err) {
+      alert("Import failed: " + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('DOMContentLoaded', () => {
+  const today = new Date().toISOString().slice(0, 10);
+  document.getElementById('entryDate').value = today;
+  updateDayDisplay();
+  addExerciseRow('am');
+  addExerciseRow('metcon');
+});
+</script>
+
+</body>
+</html>
