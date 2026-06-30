@@ -10,7 +10,7 @@
     --bg: #F1EBDF; --surface: #F8F4EC; --surface-alt: #E8E0D0;
     --border: #DBD2BF; --border-soft: #E6DCC7;
     --text: #2D2A26; --text-2: #6B6660; --muted: #A39E97;
-    --accent: #FF7A55; --accent-soft: #FFE9DF; --accent-2: #5DAA80;
+    --accent: #FF7A55; --accent-soft: #FFE9DF; --accent-2: #5DAA80; --accent-2-soft: #DCEFE2;
     --warn: #E8A957; --gold: #F2B340; --danger: #DC6E6E;
     --header-bg: #1F1B17; --header-text: #F1EBDF; --header-text-2: #B0A89A;
     --header-border: #2F2A24;
@@ -36,18 +36,15 @@
     padding: 6px 12px; border: 1px solid var(--header-border); border-radius: 8px;
   }
   a.back:hover { color: var(--header-text); border-color: var(--accent); }
-
-  main { max-width: 1080px; margin: 0 auto; padding: 22px 20px; }
-
+  main { max-width: 680px; margin: 0 auto; padding: 22px 20px; }
   h1 { margin: 0 0 4px; font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
-  .subtle { color: var(--text-2); font-size: 14px; margin: 0 0 22px; }
-
+  .subtle { color: var(--text-2); font-size: 14px; margin: 0 0 18px; line-height: 1.5; }
   .controls {
     background: var(--surface);
     border: 1px solid var(--border-soft);
     border-radius: var(--radius);
-    padding: 16px;
-    margin-bottom: 18px;
+    padding: 14px;
+    margin-bottom: 16px;
     position: sticky;
     top: 60px;
     z-index: 40;
@@ -61,117 +58,135 @@
     border-radius: 10px;
     font-size: 15px;
     font-weight: 500;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
     font-family: inherit;
   }
   .search-box:focus { outline: none; border-color: var(--accent); background: white; }
-
-  .chip-row { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 0; }
-  .chip-row::-webkit-scrollbar { height: 4px; }
+  .chip-row { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
   .chip {
-    background: var(--surface-alt);
-    border: none;
-    color: var(--text-2);
-    padding: 7px 14px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 700;
-    cursor: pointer;
-    white-space: nowrap;
-    letter-spacing: 0.3px;
-    font-family: inherit;
+    background: var(--surface-alt); border: none; color: var(--text-2);
+    padding: 7px 14px; border-radius: 999px; font-size: 12px; font-weight: 700;
+    cursor: pointer; white-space: nowrap; letter-spacing: 0.3px; font-family: inherit;
     transition: all 0.15s;
   }
   .chip.active { background: var(--text); color: var(--bg); }
-
-  .row2 { display: flex; gap: 16px; margin-top: 12px; align-items: center; flex-wrap: wrap; }
-  .row2 .label {
-    font-size: 10px; color: var(--muted); font-weight: 700;
-    text-transform: uppercase; letter-spacing: 1px;
-  }
-  .toggle-row { display: flex; gap: 4px; background: var(--surface-alt); padding: 3px; border-radius: 999px; }
+  .toggle-row { display: inline-flex; gap: 2px; background: var(--surface-alt); padding: 3px; border-radius: 999px; margin-top: 8px; }
   .toggle-row button {
     background: transparent; border: none; color: var(--text-2);
-    padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 700;
+    padding: 6px 12px; border-radius: 999px; font-size: 11px; font-weight: 700;
     cursor: pointer; font-family: inherit;
   }
   .toggle-row button.active { background: var(--text); color: var(--bg); }
+  .stats { color: var(--text-2); font-size: 12px; font-weight: 600; margin-top: 8px; }
 
-  .stats { color: var(--text-2); font-size: 12px; font-weight: 600; margin-left: auto; }
-
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 10px;
-  }
-  .ex-card {
-    background: var(--surface);
-    border: 1px solid var(--border-soft);
-    border-radius: var(--radius);
-    padding: 14px 14px 12px;
-    display: flex; flex-direction: column; gap: 6px;
-    transition: all 0.15s;
-    position: relative;
-  }
-  .ex-card.favorite {
-    background: linear-gradient(135deg, var(--surface), #FFF6E5);
-    border-color: var(--gold);
-  }
-  .ex-card.hidden-pref {
-    opacity: 0.45;
-    background: var(--surface-alt);
-  }
-  .ex-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(45, 42, 38, 0.08); }
-  .ex-name {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--text);
-    line-height: 1.3;
-    padding-right: 60px;
-  }
-  .ex-meta {
-    color: var(--text-2);
+  /* List view */
+  .group-label {
+    margin: 22px 0 8px 4px;
     font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    font-weight: 700;
-  }
-  .ex-meta .cat-am { color: var(--accent); }
-  .ex-meta .cat-pm { color: var(--accent-2); }
-  .ex-actions {
-    position: absolute;
-    top: 12px; right: 12px;
-    display: flex; gap: 4px;
-  }
-  .pref-btn {
-    background: var(--surface-alt);
-    border: none;
-    color: var(--muted);
-    width: 26px; height: 26px;
-    border-radius: 50%;
-    cursor: pointer;
-    font-size: 13px;
-    display: flex; align-items: center; justify-content: center;
-    transition: all 0.15s;
-    font-family: inherit;
-  }
-  .pref-btn:hover { transform: scale(1.1); }
-  .pref-btn.star.on { background: var(--gold); color: white; }
-  .pref-btn.hide.on { background: var(--muted); color: white; }
-  .empty {
-    text-align: center; color: var(--text-2); padding: 60px 20px; font-size: 14px;
-  }
-
-  .section-title {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
     color: var(--text-2);
     font-weight: 800;
-    margin: 24px 0 10px 2px;
-    display: flex; align-items: center; gap: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
   }
-  .section-title .count { color: var(--muted); font-weight: 600; }
+  .group-label.am { color: var(--accent); }
+  .group-label.pm { color: var(--accent-2); }
+
+  .ex-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    padding: 14px 16px;
+    margin-bottom: 6px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .ex-row:hover { background: white; border-color: var(--accent); box-shadow: 0 2px 8px rgba(45,42,38,0.06); }
+  .ex-row .name-block { flex: 1; min-width: 0; }
+  .ex-row .name { font-size: 15px; font-weight: 700; color: var(--text); line-height: 1.3; }
+  .ex-row .focus { color: var(--text-2); font-size: 12px; margin-top: 2px; line-height: 1.4; }
+  .ex-row .badge-row { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
+  .ex-row.fav .name { color: var(--gold); }
+  .ex-row.fav { border-color: var(--gold); }
+  .ex-row.hid { opacity: 0.45; }
+  .star-mini {
+    font-size: 14px; color: var(--gold);
+    display: inline-block; margin-right: 4px;
+  }
+
+  /* Detail modal */
+  .modal-bg {
+    position: fixed; inset: 0; background: rgba(45,42,38,0.45);
+    display: none; align-items: flex-end; justify-content: center; z-index: 100;
+  }
+  .modal-bg.show { display: flex; }
+  .modal-card {
+    background: var(--bg); border-radius: 20px 20px 0 0;
+    width: 100%; max-width: 560px; max-height: 88vh;
+    display: flex; flex-direction: column;
+    animation: slideUp 0.25s ease-out;
+  }
+  @keyframes slideUp { from { transform: translateY(100%) } to { transform: translateY(0) } }
+  .modal-head {
+    padding: 18px 22px 16px;
+    border-bottom: 1px solid var(--border-soft);
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;
+  }
+  .modal-head .name { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
+  .modal-head .meta { font-size: 11px; color: var(--text-2); text-transform: uppercase; letter-spacing: 1.2px; font-weight: 700; margin-top: 4px; }
+  .modal-close {
+    background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 13px;
+    flex-shrink: 0;
+  }
+  .modal-body { padding: 18px 22px 24px; overflow-y: auto; flex: 1; }
+  .section { margin-bottom: 18px; }
+  .section h3 {
+    margin: 0 0 8px; font-size: 11px; color: var(--text-2);
+    text-transform: uppercase; letter-spacing: 1.2px; font-weight: 800;
+  }
+  .focus-text {
+    background: var(--surface); border-left: 3px solid var(--accent);
+    padding: 12px 14px; border-radius: 0 8px 8px 0;
+    font-size: 14px; line-height: 1.5; color: var(--text);
+  }
+  .focus-text.empty { border-left-color: var(--muted); color: var(--text-2); font-style: italic; }
+  textarea {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); padding: 10px 12px; border-radius: 10px;
+    font-size: 14px; font-family: inherit; resize: vertical; min-height: 70px;
+  }
+  textarea:focus { outline: none; border-color: var(--accent); background: white; }
+  input[type=url] {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); padding: 10px 12px; border-radius: 10px;
+    font-size: 14px; font-family: inherit;
+  }
+  input[type=url]:focus { outline: none; border-color: var(--accent); background: white; }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn {
+    background: var(--accent); color: white; border: none;
+    padding: 10px 16px; border-radius: 10px; font-size: 13px; font-weight: 700;
+    cursor: pointer; font-family: inherit;
+    transition: all 0.15s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn:hover { transform: translateY(-1px); }
+  .btn.secondary { background: var(--surface-alt); color: var(--text); }
+  .btn.gold { background: var(--gold); }
+  .btn.danger { background: var(--danger); }
+  .yt-btn {
+    background: #FF0000; color: white; padding: 11px 18px;
+    border: none; border-radius: 10px; font-size: 14px; font-weight: 700;
+    text-decoration: none; display: inline-flex; align-items: center; gap: 8px;
+    cursor: pointer; font-family: inherit;
+  }
+  .yt-btn:hover { background: #cc0000; }
+  .empty {
+    text-align: center; color: var(--text-2); padding: 50px 20px; font-size: 14px;
+  }
 </style>
 </head>
 <body>
@@ -183,30 +198,64 @@
 
 <main>
   <h1>Exercise Pool</h1>
-  <p class="subtle">Browse, star your favorites, hide what you'd rather not see. Affects pickers throughout the app.</p>
+  <p class="subtle">Tap any exercise for form cues, video, and your own notes. Star favorites, hide what you don't want.</p>
 
   <div class="controls">
     <input class="search-box" id="search" type="text" placeholder="Search exercises..." oninput="render()" />
     <div class="chip-row" id="catChips"></div>
-    <div class="row2">
-      <span class="label">Phase</span>
+    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 4px;">
       <div class="toggle-row" id="phaseToggle">
         <button data-v="all" class="active" onclick="setPhase('all')">All</button>
         <button data-v="am" onclick="setPhase('am')">AM</button>
         <button data-v="pm" onclick="setPhase('pm')">PM</button>
       </div>
-      <span class="label">Show</span>
       <div class="toggle-row" id="showToggle">
         <button data-v="visible" class="active" onclick="setShowMode('visible')">Active</button>
-        <button data-v="all" onclick="setShowMode('all')">All</button>
         <button data-v="favorites" onclick="setShowMode('favorites')">Stars</button>
+        <button data-v="all" onclick="setShowMode('all')">All</button>
       </div>
-      <div class="stats" id="stats"></div>
+      <span class="stats" id="stats" style="margin-left:auto;"></span>
     </div>
   </div>
 
   <div id="content"></div>
 </main>
+
+<!-- Detail modal -->
+<div class="modal-bg" id="modalBg" onclick="if(event.target.id==='modalBg') closeModal()">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div>
+        <div class="name" id="dName"></div>
+        <div class="meta" id="dMeta"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="section">
+        <h3>Form focus</h3>
+        <div id="dFocus" class="focus-text"></div>
+      </div>
+      <div class="section">
+        <h3>Video</h3>
+        <a id="dYouTube" class="yt-btn" href="#" target="_blank" rel="noopener">▶ Watch on YouTube</a>
+      </div>
+      <div class="section">
+        <h3>Custom video URL <span style="color:var(--muted); font-weight:400; text-transform:none; letter-spacing:0; font-size:11px;">(optional — paste a specific video link)</span></h3>
+        <input type="url" id="dCustomUrl" placeholder="https://youtube.com/watch?v=..." />
+      </div>
+      <div class="section">
+        <h3>Your notes</h3>
+        <textarea id="dCustomNotes" placeholder="Cues, tweaks, weights you've worked up to, etc."></textarea>
+      </div>
+      <div class="btn-row">
+        <button id="dStarBtn" class="btn gold" onclick="toggleStar()">★ Star</button>
+        <button id="dHideBtn" class="btn secondary" onclick="toggleHide()">Hide</button>
+        <button class="btn" onclick="saveNotes()">Save Notes</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
 const POOL = {
@@ -237,14 +286,114 @@ const POOL = {
 };
 const CATEGORIES = ["Chest/Tri","Back/Bi","Shoulders","Abs","Legs","Universal"];
 
-// Flatten the pool into an array with metadata
+// Form focus cues — 1-2 line "what to focus on" per exercise
+const FOCUS = {
+  // Chest/Tri AM
+  "Machine Chest Press": "Squeeze chest at peak. Don't lock elbows. Control the negative (~3 sec down).",
+  "Incline DB Press": "Bench at 30-45°. Drive through chest, not shoulders. Touch DBs lightly at top.",
+  "Flat DB Press": "Lower DBs to nipple-line. Pause briefly at the bottom for full stretch.",
+  "DB Chest Fly": "Slight elbow bend (locked). Feel stretch in chest at bottom. Squeeze at top.",
+  "Cable Fly (High)": "Targets lower chest. Hands meet at hip level. Slight forward lean.",
+  "Cable Fly (Mid)": "Hands meet at chest level. Slight bend in elbows throughout.",
+  "Cable Fly (Low)": "Targets upper chest. Hands meet at eye level. Stand tall.",
+  "Pec Deck Machine": "Squeeze hard at midline. Slow eccentric. Don't let arms go behind torso.",
+  "Tricep Pushdown (Bar)": "Elbows pinned to sides. Only forearms move. Full lockout at bottom.",
+  "Tricep Pushdown (Rope)": "Pull rope apart at the bottom. Full extension and slight outward rotation.",
+  "Overhead Cable Tricep Extension": "Keep elbows close to head. Full stretch overhead. Don't flare elbows.",
+  "DB Skull Crushers": "Elbows fixed. Lower DBs beside (not on) forehead. Full ROM.",
+  "DB Tricep Kickback": "Upper arm parallel to floor, locked. Only forearm extends. Squeeze at top.",
+  // Chest/Tri PM
+  "Standard Pushups": "Body in straight line. Lower chest to fist-width above ground. Full lockout.",
+  "Diamond Pushups": "Hands together under chest. Elbows tight to ribs. Tricep dominant.",
+  "Decline Pushups": "Feet elevated. Targets upper chest. Don't let hips sag.",
+  "Plyo Pushups": "Explosive press up. Hands leave ground. Control the landing.",
+  "Parallel Bar Dips": "Lean slightly forward for chest. Stay upright for tri. Full ROM.",
+  "Burpees": "Tight core throughout. Full pushup (not partial). Jump fully at top.",
+  // Back/Bi AM
+  "Lat Pulldown (Wide)": "Drive elbows down and back. Squeeze lats at bottom. Slight backward lean.",
+  "Lat Pulldown (Close-Grip)": "Pull to upper chest. Squeeze mid-back at bottom. Full stretch at top.",
+  "Cable Row (Mid)": "Pull to navel. Elbows in. Squeeze shoulder blades. Don't yank with hips.",
+  "Single-Arm Cable Row": "Full stretch at start (let lat lengthen). Squeeze back at end. Don't twist torso.",
+  "DB One-Arm Row": "Pull elbow back to hip. Don't rotate. Pause at the top.",
+  "Reverse Pec Deck": "Targets rear delts + rhomboids. Don't shrug. Squeeze at peak.",
+  "Face Pulls": "Hands at temple level. Elbows high. Pull rope apart. Slight pause.",
+  "DB Curls": "No swinging. Full ROM. Slight pause at top. Control negative (~2-3 sec).",
+  "Hammer Curls": "Neutral grip (thumbs up). Targets brachialis + forearms. Slow tempo.",
+  "Preacher Curl Machine": "Full stretch at bottom. Don't lose tension at top. Strict form only.",
+  "Cable Curls (Rope)": "Twist outward at the top for peak bi contraction.",
+  // Back/Bi PM
+  "Pull-ups": "Initiate with lats (not biceps). Chin over bar. Full extension at bottom. Controlled descent.",
+  "Chin-ups": "Underhand grip. More bicep involvement than pull-ups.",
+  "Inverted Rows (TRX)": "Body straight. Pull chest to handles. Squeeze shoulder blades.",
+  "Pushup Rows (Renegade)": "Stable plank. Don't twist hips. Row one DB at a time.",
+  "Scapula Pulls": "Just shoulder blades move. Initiate every pull-up from here.",
+  // Shoulders AM
+  "Machine Shoulder Press": "Don't flare elbows excessively. Full ROM. Control the negative.",
+  "Seated DB Shoulder Press": "Press in slight arc. DBs meet at top. Don't lock out hard.",
+  "Arnold Press": "Start palms facing you, rotate outward as you press. Full stretch.",
+  "DB Lateral Raise": "Slight elbow bend (locked). Lead with elbows. Raise to shoulder height only.",
+  "Cable Lateral Raise": "Cable behind body. Pull across body to start. Constant tension is the value.",
+  "DB Front Raise": "Slight elbow bend. Raise to eye level. Don't swing.",
+  "DB Rear Delt Fly": "Hinge forward at hips. Pull elbows up and out. Squeeze rear delts.",
+  // Shoulders PM
+  "Pike Pushups": "Hips high (downward dog). Lower head between hands. Shoulder dominant.",
+  "Wall Walks": "Slow descent. Strong core. Get as close to wall as you can.",
+  "Plank Shoulder Taps": "Tight plank. Hips don't shift side-to-side. Slow tempo.",
+  // Abs
+  "Cable Crunches": "Crunch with abs (not hip flexors). Round spine. Full contraction.",
+  "Ab Wheel Rollouts": "Hollow body throughout. Roll out, don't sag. Pull back with abs.",
+  "Hanging Leg Raises": "No swing. Legs straight (or knees for easier). Pause at top.",
+  "Hanging Knee Raises": "Knees to chest. Control descent. Don't kip.",
+  "Russian Twists (Weighted)": "Lean back ~45°. Touch weight to ground each side. Heels off floor.",
+  "Plank w/ Plate": "Tight from head to heels. Don't let hips sag. Breathe.",
+  "Side Plank w/ Weight": "Body in straight line. Hold weight on top hip. Squeeze obliques.",
+  "Dragon Flags": "Bruce Lee classic. Lower body as one unit. Tight core. Advanced.",
+  "Toes-to-Bar": "Kip or strict. Toes touch the bar. Tight core throughout.",
+  "Hollow Holds": "Lower back pressed to floor. Arms + legs off ground. Don't break the shape.",
+  "Bicycle Crunches": "Slow + controlled. Elbow to opposite knee. Full extension on other leg.",
+  "Mountain Climbers": "Tight plank. Drive knees to chest. Don't bounce hips.",
+  "L-Sit Hold": "Press shoulders down. Legs straight, parallel to floor. Strong core. Long-game move.",
+  // Legs AM
+  "Leg Press": "Feet shoulder-width. Knees track over toes. Don't lock out at top. Full ROM.",
+  "Leg Curls (Seated)": "Hamstring + glute focus. Squeeze at the bottom. Slow tempo.",
+  "Leg Curls (Lying)": "Squeeze hams hard at peak. Don't let weight stack slam down.",
+  "Leg Extensions": "Squeeze quads at the top. 1-sec pause. Slow eccentric.",
+  "Hack Squat Machine": "Knees track over toes. Don't lock out. Good depth (parallel or below).",
+  "DB Goblet Squat": "Hold DB at chest. Elbows tucked. Sit between heels. Chest up.",
+  "DB Walking Lunges": "Long stride. Front knee tracks over toe. Drive through front heel.",
+  "Bulgarian Split Squat (DB)": "Front foot forward. Back foot elevated. Knee tracks. Drive through front leg.",
+  "DB Romanian Deadlift": "Hinge at hips (not squat). Soft knees. DBs glide down legs. Feel hams stretch.",
+  "DB Single-Leg RDL": "Hinge on one leg. Free leg extends back. Spine neutral. Drive through standing heel.",
+  "Hip Thrust (Machine)": "Drive through heels. Full hip extension. Squeeze glutes at top. Don't overextend.",
+  "Standing Calf Raise (DB)": "Full ROM. Pause and squeeze at top. Don't bounce.",
+  "Seated Calf Raise (Machine)": "Targets soleus. Slow tempo, full stretch at bottom.",
+  // Legs PM
+  "Bulgarian Split Squat Jumps": "Front foot stays. Explosive jump. Soft landing. Quad + glute fire.",
+  "Box Jumps": "Soft landing on box. Stand fully at top. Step down (don't jump back).",
+  "Broad Jumps": "Arms swing for momentum. Hips load back. Land soft, absorb.",
+  "Jump Squats": "Full squat depth. Explode up. Land soft, immediately reload.",
+  "Wall Sits": "Thighs parallel to ground. Hold position. Strong glutes + quads.",
+  "Pistol Squat Progressions": "One leg, full depth. Counter-balance with arms. Hold a rail for help.",
+  // Universal
+  "Ball Slams": "Use whole body. Reach overhead, slam down hard. Reset, repeat.",
+  "Battle Ropes": "Hip-width stance. Athletic posture. Power from hips, not just arms.",
+  "Jump Rope (double-unders)": "Wrist flick, not arm swing. Stay light on toes. Controlled jumps.",
+  "Bear Crawls": "Knees just off floor. Opposite hand/foot. Tight core.",
+  "Farmer Carry": "Stand tall. Shoulders back. Don't lean. Heavy DBs, walk for distance.",
+};
+
+// Helper: get focus text or fallback
+function getFocus(name) {
+  return FOCUS[name] || null;
+}
+
+// Flatten and dedupe pool
 function flatten() {
   const out = [];
   CATEGORIES.forEach(cat => {
     POOL[cat].am.forEach(n => out.push({ name: n, category: cat, phase: 'am' }));
     POOL[cat].pm.forEach(n => out.push({ name: n, category: cat, phase: 'pm' }));
   });
-  // De-dupe by name (some exercises appear under multiple categories — keep first)
   const seen = new Set();
   return out.filter(e => {
     if (seen.has(e.name)) return false;
@@ -253,56 +402,46 @@ function flatten() {
 }
 const ALL = flatten();
 
-// ---- State ----
+// State
 let prefs = { favorites: new Set(), hidden: new Set() };
-let activeCategory = 'all'; // 'all' or category name
-let activePhase = 'all';    // 'all' | 'am' | 'pm'
-let showMode = 'visible';   // 'visible' | 'all' | 'favorites'
+let activeCategory = 'Chest/Tri'; // start narrow — less cluttered default
+let activePhase = 'all';
+let showMode = 'visible';
+let currentDetailEx = null;
+let currentDetailNotes = { youtube_url: null, custom_notes: null };
 
-// ---- Init ----
 async function init() {
-  // Auth check
   const r = await fetch('/api/me');
   const { user } = await r.json();
   if (!user) { location.href = '/login.html'; return; }
-  // Load prefs
   const pr = await fetch('/api/exercise-prefs');
   if (pr.ok) {
     const { favorites, hidden } = await pr.json();
     prefs.favorites = new Set(favorites);
     prefs.hidden = new Set(hidden);
   }
-  // Render category chips
   document.getElementById('catChips').innerHTML = `
-    <button class="chip active" data-cat="all" onclick="setCat('all')">All</button>
-    ${CATEGORIES.map(c => `<button class="chip" data-cat="${c}" onclick="setCat('${c}')">${c}</button>`).join('')}
+    <button class="chip" data-cat="all" onclick="setCat('all')">All</button>
+    ${CATEGORIES.map(c => `<button class="chip ${c === activeCategory ? 'active' : ''}" data-cat="${c}" onclick="setCat('${c}')">${c}</button>`).join('')}
   `;
   render();
 }
 
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 function setCat(c) {
   activeCategory = c;
-  document.querySelectorAll('#catChips .chip').forEach(b => {
-    b.classList.toggle('active', b.dataset.cat === c);
-  });
+  document.querySelectorAll('#catChips .chip').forEach(b => b.classList.toggle('active', b.dataset.cat === c));
   render();
 }
 function setPhase(p) {
   activePhase = p;
-  document.querySelectorAll('#phaseToggle button').forEach(b => {
-    b.classList.toggle('active', b.dataset.v === p);
-  });
+  document.querySelectorAll('#phaseToggle button').forEach(b => b.classList.toggle('active', b.dataset.v === p));
   render();
 }
 function setShowMode(s) {
   showMode = s;
-  document.querySelectorAll('#showToggle button').forEach(b => {
-    b.classList.toggle('active', b.dataset.v === s);
-  });
+  document.querySelectorAll('#showToggle button').forEach(b => b.classList.toggle('active', b.dataset.v === s));
   render();
 }
 
@@ -314,60 +453,144 @@ function render() {
     if (q && !e.name.toLowerCase().includes(q)) return false;
     return true;
   });
-  // Apply show mode
   if (showMode === 'visible') list = list.filter(e => !prefs.hidden.has(e.name));
   else if (showMode === 'favorites') list = list.filter(e => prefs.favorites.has(e.name));
-  // Sort: favorites first, then alphabetical, hidden last
+
+  // Group by phase if showing all phases (cleaner visual hierarchy)
   list.sort((a, b) => {
+    if (a.phase !== b.phase) return a.phase < b.phase ? -1 : 1;
     const af = prefs.favorites.has(a.name), bf = prefs.favorites.has(b.name);
-    const ah = prefs.hidden.has(a.name), bh = prefs.hidden.has(b.name);
     if (af !== bf) return af ? -1 : 1;
+    const ah = prefs.hidden.has(a.name), bh = prefs.hidden.has(b.name);
     if (ah !== bh) return ah ? 1 : -1;
     return a.name.localeCompare(b.name);
   });
 
-  const stats = document.getElementById('stats');
-  stats.textContent = `${list.length} exercise${list.length !== 1 ? 's' : ''} · ${prefs.favorites.size} starred · ${prefs.hidden.size} hidden`;
+  document.getElementById('stats').textContent = `${list.length} · ${prefs.favorites.size}★ · ${prefs.hidden.size} hidden`;
 
   const c = document.getElementById('content');
   if (!list.length) {
-    c.innerHTML = `<div class="empty">No exercises match. Try clearing filters or search.</div>`;
+    c.innerHTML = `<div class="empty">No exercises match. Try a different filter or search.</div>`;
     return;
   }
-  c.innerHTML = `<div class="grid">${list.map(e => {
+
+  let html = '';
+  let lastPhase = null;
+  list.forEach(e => {
+    if (activePhase === 'all' && e.phase !== lastPhase) {
+      lastPhase = e.phase;
+      html += `<div class="group-label ${e.phase}">${e.phase === 'am' ? 'Morning · Strength' : 'Afternoon · Endurance/Supplement'}</div>`;
+    }
     const isFav = prefs.favorites.has(e.name);
     const isHid = prefs.hidden.has(e.name);
-    const cls = ['ex-card'];
-    if (isFav) cls.push('favorite');
-    if (isHid) cls.push('hidden-pref');
-    return `
-      <div class="${cls.join(' ')}">
-        <div class="ex-actions">
-          <button class="pref-btn star ${isFav ? 'on' : ''}" onclick="togglePref('${escapeHtml(e.name).replace(/'/g, "\\'")}', 'favorite')" title="${isFav ? 'Unstar' : 'Star'}">★</button>
-          <button class="pref-btn hide ${isHid ? 'on' : ''}" onclick="togglePref('${escapeHtml(e.name).replace(/'/g, "\\'")}', 'hidden')" title="${isHid ? 'Unhide' : 'Hide'}">✕</button>
+    const focus = getFocus(e.name);
+    html += `
+      <div class="ex-row ${isFav ? 'fav' : ''} ${isHid ? 'hid' : ''}" onclick="openDetail('${escapeHtml(e.name).replace(/'/g, "\\'")}', '${e.category}', '${e.phase}')">
+        <div class="name-block">
+          <div class="name">${isFav ? '<span class="star-mini">★</span>' : ''}${escapeHtml(e.name)}</div>
+          <div class="focus">${focus ? escapeHtml(focus) : '<em>Tap for video + add your notes</em>'}</div>
         </div>
-        <div class="ex-name">${escapeHtml(e.name)}</div>
-        <div class="ex-meta">${e.category} · <span class="cat-${e.phase}">${e.phase.toUpperCase()}</span></div>
       </div>
     `;
-  }).join('')}</div>`;
+  });
+  c.innerHTML = html;
 }
 
-async function togglePref(name, kind) {
-  const isCurrentlyThis = kind === 'favorite' ? prefs.favorites.has(name) : prefs.hidden.has(name);
-  const newStatus = isCurrentlyThis ? null : kind;
-  // Update local state
+// ===== Detail modal =====
+async function openDetail(name, category, phase) {
+  currentDetailEx = { name, category, phase };
+  document.getElementById('dName').textContent = name;
+  document.getElementById('dMeta').textContent = `${category} · ${phase.toUpperCase()}`;
+  const focus = getFocus(name);
+  document.getElementById('dFocus').className = focus ? 'focus-text' : 'focus-text empty';
+  document.getElementById('dFocus').textContent = focus || 'No focus notes yet. Add your own below.';
+  // Default YouTube link (search)
+  const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(name + ' form tutorial')}`;
+  // Load user's custom notes/url
+  currentDetailNotes = { youtube_url: null, custom_notes: null };
+  document.getElementById('dCustomUrl').value = '';
+  document.getElementById('dCustomNotes').value = '';
+  document.getElementById('dYouTube').href = searchUrl;
+  try {
+    const r = await fetch(`/api/exercise-notes/${encodeURIComponent(name)}`);
+    if (r.ok) {
+      const data = await r.json();
+      currentDetailNotes = data;
+      if (data.youtube_url) {
+        document.getElementById('dCustomUrl').value = data.youtube_url;
+        document.getElementById('dYouTube').href = data.youtube_url;
+        document.getElementById('dYouTube').textContent = '▶ Watch (your video)';
+      } else {
+        document.getElementById('dYouTube').textContent = '▶ Search on YouTube';
+      }
+      document.getElementById('dCustomNotes').value = data.custom_notes || '';
+    }
+  } catch {}
+  // Star + hide button state
+  const isFav = prefs.favorites.has(name);
+  const isHid = prefs.hidden.has(name);
+  const starBtn = document.getElementById('dStarBtn');
+  const hideBtn = document.getElementById('dHideBtn');
+  starBtn.textContent = isFav ? '★ Starred' : '★ Star';
+  starBtn.className = `btn ${isFav ? 'gold' : 'secondary'}`;
+  hideBtn.textContent = isHid ? 'Unhide' : 'Hide';
+  hideBtn.className = `btn ${isHid ? 'danger' : 'secondary'}`;
+  document.getElementById('modalBg').classList.add('show');
+}
+function closeModal() {
+  document.getElementById('modalBg').classList.remove('show');
+  currentDetailEx = null;
+}
+
+async function toggleStar() {
+  if (!currentDetailEx) return;
+  const name = currentDetailEx.name;
+  const wasFav = prefs.favorites.has(name);
+  const newStatus = wasFav ? null : 'favorite';
   prefs.favorites.delete(name);
   prefs.hidden.delete(name);
   if (newStatus === 'favorite') prefs.favorites.add(name);
-  else if (newStatus === 'hidden') prefs.hidden.add(name);
-  render();
-  // Sync to server
+  // Update buttons + re-render list under hood
+  openDetail(name, currentDetailEx.category, currentDetailEx.phase); // refresh modal state
   await fetch('/api/exercise-prefs', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, status: newStatus }),
   });
+  render();
+}
+async function toggleHide() {
+  if (!currentDetailEx) return;
+  const name = currentDetailEx.name;
+  const wasHid = prefs.hidden.has(name);
+  const newStatus = wasHid ? null : 'hidden';
+  prefs.favorites.delete(name);
+  prefs.hidden.delete(name);
+  if (newStatus === 'hidden') prefs.hidden.add(name);
+  openDetail(name, currentDetailEx.category, currentDetailEx.phase);
+  await fetch('/api/exercise-prefs', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, status: newStatus }),
+  });
+  render();
+}
+
+async function saveNotes() {
+  if (!currentDetailEx) return;
+  const youtube_url = document.getElementById('dCustomUrl').value.trim();
+  const custom_notes = document.getElementById('dCustomNotes').value.trim();
+  const r = await fetch(`/api/exercise-notes/${encodeURIComponent(currentDetailEx.name)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ youtube_url, custom_notes }),
+  });
+  if (!r.ok) return alert('Save failed');
+  // Briefly show "Saved" feedback
+  const allBtns = document.querySelectorAll('.btn-row .btn');
+  const saveBtn = Array.from(allBtns).find(b => b.textContent.includes('Save Notes'));
+  if (saveBtn) {
+    saveBtn.textContent = 'Saved ✓';
+    setTimeout(() => { saveBtn.textContent = 'Save Notes'; }, 1200);
+  }
 }
 
 init();
