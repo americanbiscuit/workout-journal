@@ -1,0 +1,12 @@
+{
+  "name": "workout-journal",
+  "compatibility_date": "2026-06-01",
+  "pages_build_output_dir": ".",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "workout-journal-db",
+      "database_id": "ed29ca5c-4c1e-43d0-bac0-5cbabfcafe15"
+    }
+  ]
+}
