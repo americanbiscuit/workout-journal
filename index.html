@@ -297,6 +297,20 @@
     font-weight: 600;
   }
   .exercise-menu:hover { color: var(--danger); background: rgba(220, 110, 110, 0.08); }
+  .exercise-head-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+  .star-toggle {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 18px;
+    line-height: 1;
+    transition: all 0.15s;
+  }
+  .star-toggle:hover { color: #F2B340; background: rgba(242, 179, 64, 0.1); }
+  .star-toggle.on { color: #F2B340; }
   .last-hint {
     color: var(--text-2);
     font-size: 12px;
@@ -1311,7 +1325,12 @@ function renderAMList() {
       <div class="exercise-card">
         <div class="exercise-head">
           <div class="exercise-name">${escapeHtml(ex.name)}</div>
-          <button class="exercise-menu" onclick="removeExercise(${exIdx})" title="Remove">remove</button>
+          <div class="exercise-head-actions">
+            <button class="star-toggle ${userPrefs.favorites.has(ex.name) ? 'on' : ''}"
+                    onclick="toggleFavoriteFromCard(${JSON.stringify(ex.name).replace(/'/g, "\\'")})"
+                    title="${userPrefs.favorites.has(ex.name) ? 'Unstar' : 'Star this exercise'}">★</button>
+            <button class="exercise-menu" onclick="removeExercise(${exIdx})" title="Remove">remove</button>
+          </div>
         </div>
         ${last ? `<div class="last-hint">Last time: <b>${last}</b></div>` : ''}
         <div class="sets-list">
@@ -1386,6 +1405,21 @@ function removeExercise(ei) {
   currentWorkout.am.exercises.splice(ei, 1);
   renderAMList();
   autoSave();
+}
+async function toggleFavoriteFromCard(name) {
+  const wasFav = userPrefs.favorites.has(name);
+  if (wasFav) userPrefs.favorites.delete(name);
+  else { userPrefs.favorites.add(name); userPrefs.hidden.delete(name); }
+  renderAMList();
+  try {
+    await fetch('/api/exercise-prefs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, status: wasFav ? null : 'favorite' }),
+    });
+  } catch (e) {
+    console.warn('Favorite sync failed', e);
+  }
 }
 function updateMetconReps(i, v) {
   currentWorkout.metcon.exercises[i].reps = v === '' ? null : parseInt(v);
