@@ -558,6 +558,120 @@
   .week-day-card .summary b { color: var(--text); font-weight: 700; }
   .week-day-card.empty .summary { color: var(--muted); font-style: italic; }
 
+  /* ============ MONTH VIEW ============ */
+  .month-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    margin-bottom: 8px;
+    padding: 0 2px;
+  }
+  .month-weekdays span {
+    text-align: center;
+    font-size: 10px;
+    color: var(--text-2);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 4px 0;
+  }
+  .month-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+  .month-cell {
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    padding: 6px 6px 8px;
+    min-height: 64px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: all 0.15s;
+  }
+  .month-cell:hover {
+    border-color: var(--accent);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+  }
+  .month-cell.other-month {
+    background: transparent;
+    border-color: transparent;
+    opacity: 0.35;
+  }
+  .month-cell.today {
+    border: 2px solid var(--accent);
+    background: var(--accent-soft);
+  }
+  .month-cell.has-data {
+    background: var(--surface-2);
+    border-color: var(--border);
+  }
+  .month-cell-day {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1;
+  }
+  .month-cell.other-month .month-cell-day { color: var(--muted); font-weight: 500; }
+  .month-cell.today .month-cell-day { color: var(--accent); }
+  .month-cell-cat {
+    font-size: 8px;
+    color: var(--text-2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+    margin-top: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .month-cell-dots {
+    display: flex;
+    gap: 3px;
+    margin-top: 4px;
+  }
+  .month-cell-dots .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+  .dot-lift { background: var(--accent); }
+  .dot-cardio { background: var(--accent-2); }
+  .dot-metcon { background: var(--warn); }
+
+  .month-legend {
+    display: flex;
+    justify-content: center;
+    gap: 18px;
+    margin-top: 18px;
+    color: var(--text-2);
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .month-legend .leg-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 5px;
+    vertical-align: middle;
+  }
+  .leg-lift { background: var(--accent); }
+  .leg-cardio { background: var(--accent-2); }
+  .leg-metcon { background: var(--warn); }
+
+  /* On very narrow phones, shrink cells */
+  @media (max-width: 420px) {
+    .month-cell { min-height: 56px; padding: 5px 4px 6px; }
+    .month-cell-day { font-size: 12px; }
+    .month-cell-cat { font-size: 7px; }
+    .month-cell-dots .dot { width: 5px; height: 5px; }
+  }
+
   /* ============ MODAL ============ */
   .modal-backdrop {
     position: fixed;
@@ -731,6 +845,7 @@
   <div class="view-toggle">
     <button id="dayViewBtn" class="active" onclick="setView('day')">Day</button>
     <button id="weekViewBtn" onclick="setView('week')">Week</button>
+    <button id="monthViewBtn" onclick="setView('month')">Month</button>
   </div>
   <div class="header-actions">
     <button class="icon-btn" onclick="openModal('settings')" title="Menu">≡</button>
@@ -847,6 +962,24 @@
       <button class="day-nav" onclick="shiftWeek(1)">›</button>
     </div>
     <div class="week-grid" id="weekGrid"></div>
+  </div>
+
+  <!-- MONTH VIEW -->
+  <div id="monthView" style="display:none">
+    <div class="week-header">
+      <button class="day-nav" onclick="shiftMonth(-1)">‹</button>
+      <div class="week-title" id="monthTitle">This Month</div>
+      <button class="day-nav" onclick="shiftMonth(1)">›</button>
+    </div>
+    <div class="month-weekdays">
+      <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+    </div>
+    <div class="month-grid" id="monthGrid"></div>
+    <div class="month-legend">
+      <span class="leg-dot leg-lift"></span> lift
+      <span class="leg-dot leg-cardio"></span> cardio
+      <span class="leg-dot leg-metcon"></span> metcon
+    </div>
   </div>
 
 </main>
@@ -994,15 +1127,19 @@ async function pullFromCloud() {
 let currentView = 'day';
 let currentDate = null;
 let currentWeekOffset = 0;
+let currentMonthOffset = 0;
 let currentWorkout = null;
 
 function setView(v) {
   currentView = v;
   document.getElementById('dayViewBtn').classList.toggle('active', v === 'day');
   document.getElementById('weekViewBtn').classList.toggle('active', v === 'week');
+  document.getElementById('monthViewBtn').classList.toggle('active', v === 'month');
   document.getElementById('dayView').style.display = v === 'day' ? 'block' : 'none';
   document.getElementById('weekView').style.display = v === 'week' ? 'block' : 'none';
+  document.getElementById('monthView').style.display = v === 'month' ? 'block' : 'none';
   if (v === 'week') renderWeek();
+  if (v === 'month') renderMonth();
 }
 
 // ============================================================
@@ -1277,6 +1414,68 @@ function renderWeek() {
 function jumpToDay(dateStr) {
   setDate(dateStr);
   setView('day');
+}
+
+// ============================================================
+// MONTH VIEW
+// ============================================================
+function shiftMonth(delta) { currentMonthOffset += delta; renderMonth(); }
+function renderMonth() {
+  const now = new Date();
+  const monthDate = new Date(now.getFullYear(), now.getMonth() + currentMonthOffset, 1);
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  const monthName = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  let title;
+  if (currentMonthOffset === 0) title = `${monthName.split(' ')[0]} (this month)`;
+  else if (currentMonthOffset === -1) title = `${monthName.split(' ')[0]} (last)`;
+  else title = monthName;
+  document.getElementById('monthTitle').textContent = title;
+
+  // Grid starts on Monday. First-day-of-month → calculate offset
+  const firstOfMonth = new Date(year, month, 1);
+  const firstDay = firstOfMonth.getDay(); // 0=Sun ... 6=Sat
+  const mondayOffset = (firstDay + 6) % 7; // 0 if Mon, 6 if Sun
+  const gridStart = new Date(year, month, 1 - mondayOffset);
+
+  // 6 rows × 7 cols = 42 cells
+  const today = new Date().toISOString().slice(0, 10);
+  const grid = document.getElementById('monthGrid');
+  let html = '';
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(gridStart);
+    d.setDate(d.getDate() + i);
+    const dateStr = d.toISOString().slice(0, 10);
+    const isCurrentMonth = d.getMonth() === month;
+    const isToday = dateStr === today;
+    const w = state.workouts.find(w => w.date === dateStr);
+    const cat = w?.category || (isCurrentMonth ? DAY_TO_CATEGORY[d.getDay()] : '');
+    const hasLift = w?.am?.exercises?.length > 0;
+    const hasCardio = w?.cardio?.time > 0 || w?.cardio?.distance > 0;
+    const hasMetcon = w?.metcon?.exercises?.length > 0;
+    const hasAny = hasLift || hasCardio || hasMetcon;
+
+    const classes = ['month-cell'];
+    if (!isCurrentMonth) classes.push('other-month');
+    if (isToday) classes.push('today');
+    if (hasAny && isCurrentMonth) classes.push('has-data');
+
+    html += `<div class="${classes.join(' ')}" onclick="jumpToDay('${dateStr}')">
+      <div>
+        <div class="month-cell-day">${d.getDate()}</div>
+        ${isCurrentMonth && cat ? `<div class="month-cell-cat">${shortCat(cat)}</div>` : ''}
+      </div>
+      ${hasAny ? `<div class="month-cell-dots">
+        ${hasLift ? '<span class="dot dot-lift"></span>' : ''}
+        ${hasCardio ? '<span class="dot dot-cardio"></span>' : ''}
+        ${hasMetcon ? '<span class="dot dot-metcon"></span>' : ''}
+      </div>` : ''}
+    </div>`;
+  }
+  grid.innerHTML = html;
+}
+function shortCat(cat) {
+  return ({ 'Chest/Tri':'Chest', 'Back/Bi':'Back', 'Shoulders':'Shldr', 'Abs':'Abs', 'Legs':'Legs' })[cat] || cat;
 }
 
 // ============================================================
