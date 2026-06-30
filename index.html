@@ -7,12 +7,12 @@
 <title>Workout Journal</title>
 <style>
   :root {
-    --bg: #FAF7F2;
-    --surface: #FFFFFF;
-    --surface-alt: #F2EDE5;
-    --surface-2: #FFFFFF;
-    --border: #E8E0D2;
-    --border-soft: #F0E9DC;
+    --bg: #F1EBDF;             /* softer warm sand, less bright than pure cream */
+    --surface: #F8F4EC;        /* soft warm white for cards, not stark */
+    --surface-alt: #E8E0D0;    /* warm beige for inputs */
+    --surface-2: #FCF9F2;
+    --border: #DBD2BF;
+    --border-soft: #E6DCC7;
     --text: #2D2A26;
     --text-2: #6B6660;
     --muted: #A39E97;
@@ -22,6 +22,11 @@
     --accent-2-soft: #DCEFE2;
     --warn: #E8A957;
     --danger: #DC6E6E;
+    /* Dark header palette */
+    --header-bg: #1F1B17;      /* deep warm near-black */
+    --header-text: #F1EBDF;
+    --header-text-2: #B0A89A;
+    --header-border: #2F2A24;
     --radius: 16px;
     --radius-sm: 10px;
     --shadow-sm: 0 1px 3px rgba(45, 42, 38, 0.06);
@@ -45,13 +50,14 @@
     font-size: 16px;
   }
 
-  /* ============ HEADER ============ */
+  /* ============ HEADER (dark) ============ */
   header {
     position: sticky;
     top: 0;
     z-index: 50;
-    background: var(--bg);
-    border-bottom: 1px solid var(--border-soft);
+    background: var(--header-bg);
+    color: var(--header-text);
+    border-bottom: 1px solid var(--header-border);
     padding: 18px 20px;
     display: flex;
     align-items: center;
@@ -61,7 +67,7 @@
   .logo {
     font-size: 20px;
     font-weight: 800;
-    color: var(--text);
+    color: var(--header-text);
     letter-spacing: -0.5px;
   }
   .logo .dot {
@@ -69,9 +75,9 @@
   }
   .header-actions { display: flex; gap: 6px; }
   .icon-btn {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text-2);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--header-border);
+    color: var(--header-text-2);
     width: 40px;
     height: 40px;
     border-radius: 12px;
@@ -83,13 +89,13 @@
     font-weight: 600;
     transition: all 0.15s;
   }
-  .icon-btn:hover { color: var(--text); border-color: var(--accent); background: var(--accent-soft); }
+  .icon-btn:hover { color: var(--header-text); border-color: var(--accent); background: rgba(255, 122, 85, 0.15); }
   .icon-btn:active { transform: scale(0.95); }
 
-  /* ============ VIEW TOGGLE ============ */
+  /* ============ VIEW TOGGLE (in dark header) ============ */
   .view-toggle {
     display: inline-flex;
-    background: var(--surface-alt);
+    background: rgba(255, 255, 255, 0.06);
     border-radius: 999px;
     padding: 4px;
     gap: 0;
@@ -97,7 +103,7 @@
   .view-toggle button {
     background: transparent;
     border: none;
-    color: var(--text-2);
+    color: var(--header-text-2);
     padding: 8px 18px;
     border-radius: 999px;
     cursor: pointer;
@@ -107,8 +113,8 @@
     transition: all 0.18s;
   }
   .view-toggle button.active {
-    background: var(--text);
-    color: var(--bg);
+    background: var(--header-text);
+    color: var(--header-bg);
     box-shadow: var(--shadow-sm);
   }
 
@@ -1195,6 +1201,11 @@ function autoSave() {
   showSavePill();
 }
 function isEmpty(w) {
+  if (!w) return true;
+  // If user manually picked a category different from the day's default, treat as touched
+  const d = new Date(w.date + 'T12:00:00');
+  const autoCat = DAY_TO_CATEGORY[d.getDay()];
+  if (w.category && w.category !== autoCat) return false;
   return !w.am?.exercises?.length && !w.metcon?.exercises?.length
     && !w.cardio?.time && !w.notes && !w.bodyWeight;
 }
