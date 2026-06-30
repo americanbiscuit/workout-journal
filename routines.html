@@ -132,6 +132,69 @@
     border: 1px dashed var(--border); padding: 10px; border-radius: 8px;
     cursor: pointer; font-size: 13px; font-weight: 700; margin-top: 4px;
   }
+
+  /* Picker modal: bottom-sheet style + proper chips */
+  #pickerBg .modal-card {
+    max-width: 560px;
+    height: 80vh;
+    border-radius: 20px;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+  }
+  #pickerBg h2 { margin: 0 0 14px; }
+  #pickerBg #pickerSearch {
+    width: 100%;
+    background: var(--surface-alt);
+    border: 1.5px solid transparent;
+    color: var(--text);
+    padding: 11px 14px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-family: inherit;
+    margin-bottom: 10px;
+  }
+  #pickerBg #pickerSearch:focus { outline: none; border-color: var(--accent); background: white; }
+  #pickerChips {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 0 0 6px;
+    margin: 0 0 8px;
+    flex-shrink: 0;
+    flex-wrap: nowrap !important;
+  }
+  #pickerChips .chip {
+    background: var(--surface-alt) !important;
+    border: none !important;
+    color: var(--text-2) !important;
+    padding: 7px 14px !important;
+    border-radius: 999px !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    cursor: pointer;
+    white-space: nowrap;
+    letter-spacing: 0.3px;
+    font-family: inherit;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  #pickerChips .chip.active {
+    background: var(--text) !important;
+    color: var(--bg) !important;
+  }
+  #pickerList {
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    overflow-y: auto;
+    flex: 1;
+    margin: 0;
+    padding: 0;
+  }
+  #pickerList > div { padding: 13px 16px !important; border-bottom: 1px solid var(--border-soft); }
+  #pickerList > div:last-child { border-bottom: none; }
+  #pickerList > div:hover { background: var(--surface-alt); }
 </style>
 </head>
 <body>
@@ -199,12 +262,12 @@
 
 <!-- Pool picker modal (for selecting an exercise from the pool) -->
 <div class="modal-bg" id="pickerBg" onclick="if(event.target.id==='pickerBg') closePicker()">
-  <div class="modal-card" style="max-height: 88vh; display: flex; flex-direction: column;">
+  <div class="modal-card">
     <h2 id="pickerTitle">Pick an Exercise</h2>
-    <input type="text" id="pickerSearch" placeholder="Search..." oninput="filterPicker()" style="margin-bottom: 10px;" />
-    <div id="pickerChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;overflow-x:auto;"></div>
-    <div id="pickerList" style="overflow-y: auto; flex: 1; margin: 0 -12px; padding: 0 12px;"></div>
-    <div class="modal-actions">
+    <input type="text" id="pickerSearch" placeholder="Search..." oninput="filterPicker()" />
+    <div id="pickerChips"></div>
+    <div id="pickerList"></div>
+    <div class="modal-actions" style="margin-top:14px;">
       <button class="secondary" onclick="closePicker()" style="flex:1">Cancel</button>
     </div>
   </div>
