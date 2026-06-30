@@ -197,18 +197,83 @@
   </div>
 </div>
 
+<!-- Pool picker modal (for selecting an exercise from the pool) -->
+<div class="modal-bg" id="pickerBg" onclick="if(event.target.id==='pickerBg') closePicker()">
+  <div class="modal-card" style="max-height: 88vh; display: flex; flex-direction: column;">
+    <h2 id="pickerTitle">Pick an Exercise</h2>
+    <input type="text" id="pickerSearch" placeholder="Search..." oninput="filterPicker()" style="margin-bottom: 10px;" />
+    <div id="pickerChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;overflow-x:auto;"></div>
+    <div id="pickerList" style="overflow-y: auto; flex: 1; margin: 0 -12px; padding: 0 12px;"></div>
+    <div class="modal-actions">
+      <button class="secondary" onclick="closePicker()" style="flex:1">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+// Exercise pool (same as pool.html — kept in sync)
+const POOL = {
+  "Chest/Tri": {
+    am: ["Machine Chest Press","Cable Chest Press","Incline DB Press","Flat DB Press","Decline DB Press","DB Chest Fly","Cable Fly (High)","Cable Fly (Mid)","Cable Fly (Low)","Pec Deck Machine","Single-Arm DB Press","Tricep Pushdown (Bar)","Tricep Pushdown (Rope)","Overhead Cable Tricep Extension","DB Skull Crushers","DB Tricep Kickback","Overhead DB Tricep Extension","Single-Arm DB Tricep Extension","Tate Press","Close-Grip DB Press","JM Press (DB)","Cable Single-Arm Pushdown"],
+    pm: ["Standard Pushups","Diamond Pushups","Wide Pushups","Decline Pushups","Incline Pushups","Archer Pushups","Hindu Pushups","Pseudo Planche Pushups","Plyo Pushups","Clap Pushups","Spider-Man Pushups","T-Pushups","Parallel Bar Dips","Ring Dips","Bench Dips","Burpees","Tricep Pushdown Burnout","Pike Pushups (tri bias)","Pushup-to-Plank Taps","Explosive Pushups (off blocks)"]
+  },
+  "Back/Bi": {
+    am: ["Lat Pulldown (Wide)","Lat Pulldown (Close-Grip)","Lat Pulldown (Neutral)","Cable Row (High)","Cable Row (Mid)","Cable Row (Low)","Single-Arm Cable Row","Machine Row (Iso)","T-Bar Row (Machine)","DB One-Arm Row","Chest-Supported DB Row","DB High Pull","Reverse Pec Deck","Face Pulls","Straight-Arm Pulldown","DB Shrugs","Cable Shrugs","DB Curls","Hammer Curls","Concentration Curls","Preacher Curl Machine","Cable Curls (Bar)","Cable Curls (Rope)","Incline DB Curls","Spider Curls","21s","Drag Curls","Cross-Body Hammer Curls","Zottman Curls"],
+    pm: ["Pull-ups","Chin-ups","Neutral-Grip Pull-ups","Inverted Rows (TRX)","Inverted Rows (Bar)","Pushup Rows (Renegade)","Scapula Pulls","Dead Hangs","Chin Hold Isometric","Australian Pull-ups","Towel Rows","DB Curl Burnout","Hammer Curl Burnout","Cable Curl 21s","Band Pull-aparts","Face Pull Burnout"]
+  },
+  "Shoulders": {
+    am: ["Machine Shoulder Press","Seated DB Shoulder Press","Standing DB Press","Arnold Press","Single-Arm DB Press","DB Lateral Raise","Cable Lateral Raise","Machine Lateral Raise","DB Front Raise","Cable Front Raise","Plate Front Raise","DB Rear Delt Fly","Reverse Pec Deck","Cable Rear Delt Cross","Face Pulls","Cable Y-Raise","Cable W-Raise","DB Shrugs","Cuban Press","Around-the-Worlds","Bottoms-Up DB Press","DB Z-Press"],
+    pm: ["Pike Pushups","Decline Pike Pushups","Wall Walks","Wall Handstand Hold","Plank Shoulder Taps","Lateral Raise Burnout","Bear Crawls","Crab Walks","Plank-to-Down-Dog","Plate Shoulder Circles","Shoulder Tap Pushups","Pushup-to-Pike","Cable Lateral Iso Hold"]
+  },
+  "Abs": {
+    am: ["Cable Crunches","Weighted Decline Situps","Ab Wheel Rollouts","Hanging Leg Raises","Hanging Knee Raises","Captain's Chair Leg Raises","Russian Twists (Weighted)","Plank w/ Plate","Side Plank w/ Weight","Bird Dog","DB Side Bends","Pallof Press (Cable)","Cable Wood Chops","Standing Cable Crunch","Stir-the-Pot","Weighted V-Ups"],
+    pm: ["V-Ups","Hollow Holds","Hollow Rocks","Bicycle Crunches","Mountain Climbers","Plank","Side Plank","RKC Plank","Toes-to-Bar","Knees-to-Elbows","Dragon Flags","Windshield Wipers","L-Sit Hold","Russian Twists (BW)","Reverse Crunches","Flutter Kicks","Scissor Kicks","Plank Up-Downs","Cross-Body Mountain Climbers"]
+  },
+  "Legs": {
+    am: ["Leg Press","Leg Curls (Seated)","Leg Curls (Lying)","Leg Extensions","Hack Squat Machine","DB Goblet Squat","DB Walking Lunges","DB Reverse Lunges","DB Step-Ups","Bulgarian Split Squat (DB)","DB Sumo Squat","DB Romanian Deadlift","DB Single-Leg RDL","Hip Thrust (Machine)","DB Hip Thrust","Glute Kickback Machine","Cable Kickbacks","Hip Abduction Machine","Hip Adduction Machine","Standing Calf Raise (DB)","Seated Calf Raise (Machine)","Single-Leg Calf Raise (DB)"],
+    pm: ["Bulgarian Split Squat Jumps","Box Jumps","Broad Jumps","Jump Squats","Tuck Jumps","Lateral Box Jumps","Lateral Bounds","Skater Jumps","Single-Leg Hops","Walking Lunges (BW)","Reverse Lunges (BW)","Cossack Squats","Sissy Squats","Bulgarian Split Squats (BW)","Wall Sits","Pistol Squat Progressions","Step-Ups (BW)","Calf Raise Burnout"]
+  },
+  "Universal": {
+    am: [],
+    pm: ["Box Jumps","Ball Slams","Broad Jumps","Burpees","Mountain Climbers","Battle Ropes","Rowing Erg Sprint","Assault Bike Sprint","Jump Rope (singles)","Jump Rope (double-unders)","Bear Crawls","Crab Walks","Farmer Carry","Sled Push","Sled Pull","Devil Press","Thruster (DB)"]
+  }
+};
+const CATEGORIES = ["Chest/Tri","Back/Bi","Shoulders","Abs","Legs","Universal"];
+let CUSTOM = [];
+
+function getAllExercises(phaseFilter) {
+  const out = [];
+  CATEGORIES.forEach(cat => {
+    POOL[cat][phaseFilter].forEach(n => out.push({ name: n, category: cat }));
+  });
+  CUSTOM.filter(c => c.phase === phaseFilter).forEach(c => out.push({ name: c.name, category: c.category }));
+  // De-dupe
+  const seen = new Set();
+  return out.filter(e => { if (seen.has(e.name)) return false; seen.add(e.name); return true; });
+}
+
 let routines = [];
 let currentUser = null;
 let editingId = null;
 let applyingRoutine = null;
+let pickerContext = null; // {kind: 'am'|'metcon'} when picker is open
+let pickerCategory = 'all';
 
 async function init() {
   const r = await fetch('/api/me');
   const { user } = await r.json();
   if (!user) { location.href = '/login.html'; return; }
   currentUser = user;
+  // Load custom exercises so the picker includes them
+  try {
+    const cr = await fetch('/api/custom-exercises');
+    if (cr.ok) {
+      const { exercises } = await cr.json();
+      CUSTOM = exercises || [];
+    }
+  } catch {}
   await loadRoutines();
 }
 
@@ -269,7 +334,6 @@ function openCreate() {
   document.getElementById('mCategory').value = '';
   document.getElementById('mAmList').innerHTML = '';
   document.getElementById('mMetconList').innerHTML = '';
-  addExRow('am');
   document.getElementById('modalBg').classList.add('show');
 }
 function openEdit(id) {
@@ -287,17 +351,84 @@ function openEdit(id) {
 function closeModal() { document.getElementById('modalBg').classList.remove('show'); }
 
 function addExRow(kind, prefill = {}) {
+  // If no prefill, open the picker. Otherwise add the row directly (used during loadEdit).
+  if (!prefill.name) {
+    openPicker(kind);
+    return;
+  }
   const c = document.getElementById(kind === 'am' ? 'mAmList' : 'mMetconList');
   const numLabel = kind === 'am' ? 'sets' : 'reps';
   const numField = kind === 'am' ? 'sets' : 'reps';
+  const defaultNum = kind === 'am' ? 3 : 10;
   const div = document.createElement('div');
   div.className = 'ex-input-row';
   div.innerHTML = `
-    <input type="text" placeholder="Exercise name" value="${escapeHtml(prefill.name || '')}" data-field="name" />
-    <input type="number" placeholder="${numLabel}" value="${prefill[numField] ?? ''}" data-field="${numField}" />
+    <input type="text" value="${escapeHtml(prefill.name)}" data-field="name" readonly style="cursor:default; font-weight:600;" />
+    <input type="number" placeholder="${numLabel}" value="${prefill[numField] ?? defaultNum}" data-field="${numField}" />
     <button type="button" onclick="this.parentNode.remove()" title="Remove">✕</button>
   `;
   c.appendChild(div);
+}
+
+// ===== Pool picker =====
+function openPicker(kind) {
+  pickerContext = { kind };
+  pickerCategory = 'all';
+  document.getElementById('pickerTitle').textContent = kind === 'am' ? 'Pick AM Exercise' : 'Pick Metcon Movement';
+  document.getElementById('pickerSearch').value = '';
+  const chips = ['<button type="button" class="chip active" data-pcat="all" onclick="setPickerCat(\'all\')">All</button>'];
+  CATEGORIES.forEach(c => chips.push(`<button type="button" class="chip" data-pcat="${c}" onclick="setPickerCat('${c}')">${c}</button>`));
+  document.getElementById('pickerChips').innerHTML = chips.join('');
+  renderPickerList();
+  document.getElementById('pickerBg').classList.add('show');
+  setTimeout(() => document.getElementById('pickerSearch').focus(), 100);
+}
+function closePicker() {
+  document.getElementById('pickerBg').classList.remove('show');
+  pickerContext = null;
+}
+function setPickerCat(c) {
+  pickerCategory = c;
+  document.querySelectorAll('#pickerChips .chip').forEach(b => b.classList.toggle('active', b.dataset.pcat === c));
+  renderPickerList();
+}
+function filterPicker() { renderPickerList(); }
+function renderPickerList() {
+  if (!pickerContext) return;
+  const q = document.getElementById('pickerSearch').value.toLowerCase().trim();
+  const exercises = getAllExercises(pickerContext.kind === 'am' ? 'am' : 'pm');
+  const filtered = exercises.filter(e => {
+    if (pickerCategory !== 'all' && e.category !== pickerCategory) return false;
+    if (q && !e.name.toLowerCase().includes(q)) return false;
+    return true;
+  }).sort((a, b) => a.name.localeCompare(b.name));
+  const list = document.getElementById('pickerList');
+  if (!filtered.length) {
+    list.innerHTML = '<div style="text-align:center;color:var(--text-2);padding:30px;">No matches</div>';
+    return;
+  }
+  list.innerHTML = filtered.map(e => `
+    <div onclick='pickExercise(${JSON.stringify(e.name)})' style="padding:12px 14px;border-bottom:1px solid var(--border-soft);cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div style="font-size:14px;font-weight:600;color:var(--text);">${escapeHtml(e.name)}</div>
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-top:2px;">${e.category}</div>
+      </div>
+      <div style="color:var(--accent);font-size:20px;font-weight:700;">+</div>
+    </div>
+  `).join('');
+}
+function pickExercise(name) {
+  if (!pickerContext) return;
+  const kind = pickerContext.kind;
+  closePicker();
+  // Add the row with the picked name pre-filled
+  addExRow(kind, { name });
+  // Focus the number input we just added
+  setTimeout(() => {
+    const container = document.getElementById(kind === 'am' ? 'mAmList' : 'mMetconList');
+    const lastRow = container.lastElementChild;
+    if (lastRow) lastRow.querySelector('input[type=number]')?.focus();
+  }, 50);
 }
 
 async function submitRoutine() {

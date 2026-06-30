@@ -197,8 +197,13 @@
 </header>
 
 <main>
-  <h1>Exercise Pool</h1>
-  <p class="subtle">Tap any exercise for form cues, video, and your own notes. Star favorites, hide what you don't want.</p>
+  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; gap: 12px;">
+    <div>
+      <h1 style="margin: 0;">Exercise Pool</h1>
+    </div>
+    <button class="btn" onclick="openAddExercise()" style="background: var(--accent); color: white; border: none; padding: 10px 16px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; font-family: inherit;">+ New Exercise</button>
+  </div>
+  <p class="subtle">Tap any exercise for form cues, video, and your own notes. Star favorites, hide what you don't want. Add your own with the button above.</p>
 
   <div class="controls">
     <input class="search-box" id="search" type="text" placeholder="Search exercises..." oninput="render()" />
@@ -220,6 +225,51 @@
 
   <div id="content"></div>
 </main>
+
+<!-- Add Exercise modal -->
+<div class="modal-bg" id="addBg" onclick="if(event.target.id==='addBg') closeAdd()">
+  <div class="modal-card" style="max-width: 460px; height: auto; max-height: 88vh; border-radius: 20px;">
+    <div class="modal-head">
+      <div><div class="name">Add New Exercise</div></div>
+      <button class="modal-close" onclick="closeAdd()">✕</button>
+    </div>
+    <div class="modal-body">
+      <form onsubmit="event.preventDefault(); submitNewExercise();">
+        <div class="section">
+          <h3>Name</h3>
+          <input type="text" id="naName" placeholder="e.g. Pendlay Row" required style="width:100%;background:var(--surface);border:1px solid var(--border);padding:10px 12px;border-radius:10px;font-size:14px;font-family:inherit;" />
+        </div>
+        <div class="section">
+          <h3>Category</h3>
+          <select id="naCategory" required style="width:100%;background:var(--surface);border:1px solid var(--border);padding:10px 12px;border-radius:10px;font-size:14px;font-family:inherit;">
+            <option value="Chest/Tri">Chest/Tri</option>
+            <option value="Back/Bi">Back/Bi</option>
+            <option value="Shoulders">Shoulders</option>
+            <option value="Abs">Abs</option>
+            <option value="Legs">Legs</option>
+            <option value="Universal">Universal (any day)</option>
+          </select>
+        </div>
+        <div class="section">
+          <h3>Phase</h3>
+          <select id="naPhase" required style="width:100%;background:var(--surface);border:1px solid var(--border);padding:10px 12px;border-radius:10px;font-size:14px;font-family:inherit;">
+            <option value="am">AM — Strength (machine + DB)</option>
+            <option value="pm">PM — Endurance / Supplement / Cardio</option>
+          </select>
+        </div>
+        <div class="section">
+          <h3>Form focus <span style="color:var(--muted); font-weight:400; text-transform:none; letter-spacing:0; font-size:11px;">(optional, 1-2 sentences)</span></h3>
+          <textarea id="naFocus" placeholder="What to focus on while doing this exercise..."></textarea>
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn secondary" onclick="closeAdd()">Cancel</button>
+          <button type="submit" class="btn">Add to Pool</button>
+        </div>
+        <div id="naError" style="color:var(--danger); font-size:13px; margin-top:10px; display:none;"></div>
+      </form>
+    </div>
+  </div>
+</div>
 
 <!-- Detail modal -->
 <div class="modal-bg" id="modalBg" onclick="if(event.target.id==='modalBg') closeModal()">
@@ -382,25 +432,31 @@ const FOCUS = {
   "Farmer Carry": "Stand tall. Shoulders back. Don't lean. Heavy DBs, walk for distance.",
 };
 
-// Helper: get focus text or fallback
+// Helper: get focus text (custom takes precedence over hardcoded)
 function getFocus(name) {
+  const custom = ALL.find(e => e.name === name && e.custom);
+  if (custom?.focusOverride) return custom.focusOverride;
   return FOCUS[name] || null;
 }
 
-// Flatten and dedupe pool
-function flatten() {
+// Custom user-added exercises (loaded from API)
+let CUSTOM = []; // array of {id, name, category, phase, focus_note}
+
+// Flatten and dedupe pool (default + custom merged)
+function buildAll() {
   const out = [];
   CATEGORIES.forEach(cat => {
-    POOL[cat].am.forEach(n => out.push({ name: n, category: cat, phase: 'am' }));
-    POOL[cat].pm.forEach(n => out.push({ name: n, category: cat, phase: 'pm' }));
+    POOL[cat].am.forEach(n => out.push({ name: n, category: cat, phase: 'am', custom: false }));
+    POOL[cat].pm.forEach(n => out.push({ name: n, category: cat, phase: 'pm', custom: false }));
   });
+  CUSTOM.forEach(c => out.push({ name: c.name, category: c.category, phase: c.phase, custom: true, customId: c.id, focusOverride: c.focus_note }));
   const seen = new Set();
   return out.filter(e => {
     if (seen.has(e.name)) return false;
     seen.add(e.name); return true;
   });
 }
-const ALL = flatten();
+let ALL = buildAll();
 
 // State
 let prefs = { favorites: new Set(), hidden: new Set() };
@@ -414,17 +470,63 @@ async function init() {
   const r = await fetch('/api/me');
   const { user } = await r.json();
   if (!user) { location.href = '/login.html'; return; }
-  const pr = await fetch('/api/exercise-prefs');
+  const [pr, cr] = await Promise.all([
+    fetch('/api/exercise-prefs'),
+    fetch('/api/custom-exercises'),
+  ]);
   if (pr.ok) {
     const { favorites, hidden } = await pr.json();
     prefs.favorites = new Set(favorites);
     prefs.hidden = new Set(hidden);
+  }
+  if (cr.ok) {
+    const { exercises } = await cr.json();
+    CUSTOM = exercises || [];
+    ALL = buildAll();
   }
   document.getElementById('catChips').innerHTML = `
     <button class="chip" data-cat="all" onclick="setCat('all')">All</button>
     ${CATEGORIES.map(c => `<button class="chip ${c === activeCategory ? 'active' : ''}" data-cat="${c}" onclick="setCat('${c}')">${c}</button>`).join('')}
   `;
   render();
+}
+
+// ===== Add new exercise =====
+function openAddExercise() {
+  document.getElementById('naName').value = '';
+  document.getElementById('naCategory').value = activeCategory !== 'all' ? activeCategory : 'Chest/Tri';
+  document.getElementById('naPhase').value = activePhase !== 'all' ? activePhase : 'am';
+  document.getElementById('naFocus').value = '';
+  document.getElementById('naError').style.display = 'none';
+  document.getElementById('addBg').classList.add('show');
+}
+function closeAdd() { document.getElementById('addBg').classList.remove('show'); }
+
+async function submitNewExercise() {
+  const name = document.getElementById('naName').value.trim();
+  const category = document.getElementById('naCategory').value;
+  const phase = document.getElementById('naPhase').value;
+  const focus_note = document.getElementById('naFocus').value.trim();
+  const err = document.getElementById('naError');
+  err.style.display = 'none';
+  try {
+    const r = await fetch('/api/custom-exercises', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, category, phase, focus_note: focus_note || null }),
+    });
+    if (!r.ok) { const { error } = await r.json(); throw new Error(error || 'Failed'); }
+    const { id } = await r.json();
+    CUSTOM.push({ id, name, category, phase, focus_note: focus_note || null });
+    ALL = buildAll();
+    closeAdd();
+    // Jump to that category to see the new one
+    if (activeCategory !== 'all' && activeCategory !== category) setCat(category);
+    else render();
+  } catch (e) {
+    err.textContent = e.message;
+    err.style.display = 'block';
+  }
 }
 
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
