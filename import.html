@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#1F1B17" />
+<title>Import Workout</title>
+<style>
+  :root {
+    --bg: #F1EBDF;
+    --surface: #F8F4EC;
+    --surface-alt: #E8E0D0;
+    --border-soft: #E6DCC7;
+    --text: #2D2A26;
+    --text-2: #6B6660;
+    --muted: #A39E97;
+    --accent: #FF7A55;
+    --accent-2: #5DAA80;
+    --danger: #DC6E6E;
+    --header-bg: #1F1B17;
+    --header-text: #F1EBDF;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+  header {
+    background: var(--header-bg);
+    color: var(--header-text);
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .logo { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
+  .logo .dot { color: var(--accent); }
+  a.back {
+    color: var(--header-text);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    opacity: 0.7;
+  }
+  a.back:hover { opacity: 1; }
+  main {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 24px 20px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 16px;
+    padding: 22px;
+    margin-bottom: 16px;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 800;
+    margin: 0 0 8px;
+    letter-spacing: -0.5px;
+  }
+  h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-2);
+    margin: 18px 0 8px;
+  }
+  .subtle { color: var(--text-2); font-size: 14px; }
+  .summary {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .date-chip {
+    background: var(--accent);
+    color: white;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+  }
+  .pre {
+    background: var(--surface-alt);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin: 6px 0;
+    font-size: 14px;
+  }
+  .pre strong { color: var(--text); font-weight: 700; }
+  .pre .item { padding: 4px 0; }
+  .pre .item + .item { border-top: 1px solid rgba(0,0,0,0.05); }
+  textarea {
+    width: 100%;
+    background: var(--surface-alt);
+    border: 1.5px solid transparent;
+    color: var(--text);
+    padding: 14px 16px;
+    border-radius: 10px;
+    resize: vertical;
+    min-height: 120px;
+    font-size: 14px;
+    font-family: -apple-system, monospace;
+  }
+  textarea:focus { outline: none; border-color: var(--accent); background: white; }
+  .btn-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 14px 24px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  button:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(255, 122, 85, 0.3); }
+  button:active { transform: translateY(0); }
+  button.secondary {
+    background: var(--surface-alt);
+    color: var(--text);
+  }
+  button.danger { background: var(--danger); }
+  .error {
+    background: rgba(220, 110, 110, 0.1);
+    border: 1px solid rgba(220, 110, 110, 0.3);
+    color: var(--danger);
+    padding: 12px 16px;
+    border-radius: 10px;
+    margin: 14px 0;
+    font-size: 14px;
+  }
+  .success {
+    background: rgba(93, 170, 128, 0.1);
+    border: 1px solid rgba(93, 170, 128, 0.4);
+    color: var(--accent-2);
+    padding: 16px;
+    border-radius: 10px;
+    margin: 14px 0;
+    font-weight: 600;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Journal<span class="dot">.</span></div>
+  <a class="back" href="/">← back to journal</a>
+</header>
+
+<main>
+  <div class="card">
+    <h1>Import Workout</h1>
+    <p class="subtle">Review what's about to be saved, then tap Save.</p>
+    <div id="content"></div>
+  </div>
+</main>
+
+<script>
+const API_BASE = '/api/workouts';
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function renderPreview(w) {
+  const am = w.am?.exercises?.length
+    ? w.am.exercises.map(e => `<div class="item"><strong>${escapeHtml(e.name)}</strong>: ${
+        (e.sets || []).map(s => `${s.reps ?? '?'}×${s.weight ? s.weight + 'lbs' : 'BW'}`).join(', ')
+      }</div>`).join('')
+    : '<div class="item subtle">No strength logged</div>';
+  const metcon = w.metcon?.exercises?.length
+    ? w.metcon.exercises.map(m => `<div class="item">${escapeHtml(m.name)}${m.reps ? ` × ${m.reps}` : ''}</div>`).join('')
+    : '<div class="item subtle">No metcon logged</div>';
+  const cardio = w.cardio?.time
+    ? `${w.cardio.type || 'Run'} · ${w.cardio.distance || '?'}mi in ${w.cardio.time} min`
+    : 'No cardio logged';
+
+  return `
+    <div class="summary">
+      <div class="date-chip">${w.category || '?'}</div>
+      <div><strong>${w.date}</strong></div>
+    </div>
+    <h2>Morning Strength</h2>
+    <div class="pre">${am}</div>
+    <h2>Cardio</h2>
+    <div class="pre"><div class="item">${cardio}</div></div>
+    <h2>Metcon</h2>
+    <div class="pre">
+      ${w.metcon?.rounds ? `<div class="item subtle">${w.metcon.rounds} rounds · ${w.metcon.time || '?'} min · RPE ${w.metcon.rpe || '?'}/10</div>` : ''}
+      ${metcon}
+    </div>
+    ${w.notes ? `<h2>Notes</h2><div class="pre"><div class="item">${escapeHtml(w.notes)}</div></div>` : ''}
+    ${(w.bodyWeight || w.sleep || w.energy) ? `<h2>Vitals</h2><div class="pre">
+      ${w.bodyWeight ? `<div class="item">Body weight: <strong>${w.bodyWeight} lbs</strong></div>` : ''}
+      ${w.sleep ? `<div class="item">Sleep: <strong>${w.sleep} hr</strong></div>` : ''}
+      ${w.energy ? `<div class="item">Energy: <strong>${w.energy}/10</strong></div>` : ''}
+    </div>` : ''}
+    <div class="btn-row">
+      <button onclick="saveWorkout()">Save to Journal</button>
+      <button class="secondary" onclick="showRawEditor()">Edit JSON</button>
+    </div>
+  `;
+}
+
+let parsedWorkout = null;
+
+function parseFromUrl() {
+  // Try fragment first (#data=...)
+  let raw = '';
+  if (location.hash.startsWith('#data=')) {
+    raw = decodeURIComponent(location.hash.slice(6));
+  } else if (location.search.includes('data=')) {
+    const url = new URL(location.href);
+    raw = url.searchParams.get('data') || '';
+  }
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    console.error('Parse failed', e);
+    return { _parseError: e.message, _raw: raw };
+  }
+}
+
+async function saveWorkout() {
+  if (!parsedWorkout?.date) {
+    alert('Missing date');
+    return;
+  }
+  try {
+    const res = await fetch(`${API_BASE}/${parsedWorkout.date}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(parsedWorkout),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    document.getElementById('content').innerHTML = `
+      <div class="success">
+        Saved ✓ — workout for <strong>${parsedWorkout.date}</strong> is now in your journal.
+      </div>
+      <div class="btn-row">
+        <button onclick="location.href='/'">Back to Journal</button>
+      </div>
+    `;
+  } catch (e) {
+    document.getElementById('content').insertAdjacentHTML('afterbegin',
+      `<div class="error">Save failed: ${escapeHtml(e.message)}</div>`);
+  }
+}
+
+function showRawEditor() {
+  const json = JSON.stringify(parsedWorkout, null, 2);
+  document.getElementById('content').innerHTML = `
+    <p class="subtle">Edit the JSON below if anything's wrong, then save.</p>
+    <textarea id="rawJSON">${escapeHtml(json)}</textarea>
+    <div class="btn-row">
+      <button onclick="reparseRaw()">Save Edits</button>
+      <button class="secondary" onclick="renderInitial()">Back to Preview</button>
+    </div>
+  `;
+}
+
+function reparseRaw() {
+  try {
+    parsedWorkout = JSON.parse(document.getElementById('rawJSON').value);
+    renderInitial();
+  } catch (e) {
+    alert('Invalid JSON: ' + e.message);
+  }
+}
+
+function renderInitial() {
+  if (!parsedWorkout) {
+    document.getElementById('content').innerHTML = `
+      <div class="error">No workout data found in the URL. Paste JSON below to import manually.</div>
+      <textarea id="rawJSON" placeholder='{"date":"2026-06-30","category":"Legs",...}'></textarea>
+      <div class="btn-row">
+        <button onclick="reparseRaw()">Parse JSON</button>
+        <button class="secondary" onclick="location.href='/'">Back to Journal</button>
+      </div>
+    `;
+    return;
+  }
+  if (parsedWorkout._parseError) {
+    document.getElementById('content').innerHTML = `
+      <div class="error">Could not parse the URL data: ${escapeHtml(parsedWorkout._parseError)}</div>
+      <p class="subtle">Raw content received:</p>
+      <textarea readonly>${escapeHtml(parsedWorkout._raw || '')}</textarea>
+      <div class="btn-row">
+        <button class="secondary" onclick="location.href='/'">Back to Journal</button>
+      </div>
+    `;
+    return;
+  }
+  document.getElementById('content').innerHTML = renderPreview(parsedWorkout);
+}
+
+parsedWorkout = parseFromUrl();
+renderInitial();
+</script>
+
+</body>
+</html>

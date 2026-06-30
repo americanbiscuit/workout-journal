@@ -1311,6 +1311,7 @@ function openModal(type, ...args) {
     title.textContent = 'Menu';
     search.innerHTML = ''; chips.innerHTML = '';
     body.innerHTML = `
+      <div class="menu-item" onclick="openModal('claudePrompt')">Claude Prompt <span class="meta">log via AI</span></div>
       <div class="menu-item" onclick="openModal('split')">Weekly Split <span class="meta">view</span></div>
       <div class="menu-item" onclick="openModal('pool')">Exercise Pool <span class="meta">browse</span></div>
       <div class="menu-item" onclick="exportJSON()">Export Data <span class="meta">save backup</span></div>
@@ -1318,6 +1319,10 @@ function openModal(type, ...args) {
       <input type="file" id="importInput" accept=".json" style="display:none" onchange="importJSON(event)" />
       <div class="menu-item danger" onclick="clearAll()">Clear All Data</div>
     `;
+  } else if (type === 'claudePrompt') {
+    title.textContent = 'Claude Prompt';
+    search.innerHTML = ''; chips.innerHTML = '';
+    body.innerHTML = renderClaudePrompt();
   } else if (type === 'pool') {
     title.textContent = 'Exercise Pool';
     search.innerHTML = ''; chips.innerHTML = '';
@@ -1387,6 +1392,89 @@ function renderPool() {
     const pm = data.pm.length ? `<div class="group-label" style="color: var(--warn)">${cat} afternoon</div>${data.pm.map(e => `<div class="exercise-pick" style="cursor:default"><div class="name">${escapeHtml(e)}</div></div>`).join('')}` : '';
     return am + pm;
   }).join('');
+}
+function renderClaudePrompt() {
+  const today = new Date().toISOString().slice(0,10);
+  const origin = location.origin;
+  const prompt = `I'm logging a workout to my journal at ${origin}.
+Describe what I did and you'll output a clickable URL that imports it directly.
+
+OUTPUT FORMAT (exactly two things):
+1. A 1-line summary of what you parsed.
+2. A clickable markdown link in EXACTLY this format:
+   [Save workout](${origin}/import#data=URL_ENCODED_JSON)
+
+Where URL_ENCODED_JSON is the result of encodeURIComponent on a JSON object matching this schema:
+{
+  "date": "YYYY-MM-DD",                   // today is ${today} unless I say otherwise
+  "category": "Chest/Tri" | "Back/Bi" | "Shoulders" | "Abs" | "Legs",
+  "bodyWeight": number | null,
+  "sleep": number | null,
+  "energy": number | null,
+  "am": {
+    "exercises": [
+      { "name": "string", "sets": [{ "reps": number, "weight": number | null }] }
+    ]
+  },
+  "cardio": { "type": "Run"|"Walk"|"Run/Walk"|"Bike"|"Row", "distance": number, "time": number },
+  "metcon": {
+    "rounds": number | null, "time": number | null, "rpe": number | null,
+    "exercises": [{ "name": "string", "reps": number | null }]
+  },
+  "notes": "string"
+}
+
+DEFAULT CATEGORY BY DAY OF WEEK:
+- Mon = Chest/Tri (chest press, flys, tricep extensions, skull crushers, abs)
+- Tue = Back/Bi (pulldowns, rows, curls, abs)
+- Wed = Shoulders (OHP, lateral/front/rear raises, abs)
+- Thu = Abs (variable)
+- Fri = Legs (leg press, leg curls, leg extensions, DB lunges/RDL — NO deadlifts, no squat rack)
+
+CONSTRAINTS:
+- AM strength is MACHINE or DUMBBELL only (no bench, no squat rack)
+- PM cardio is usually a 2-mile run/walk
+- PM metcon is supplement work for the day's muscle group + cardio plyos (pushups, dips, ball slams, box jumps, broad jumps, BSS jumps for legs, etc.)
+- Weights in lbs. Bodyweight exercises = weight null.
+- If I don't give a number for something (e.g. "did some pushups"), set the field to null.
+- Use the day's default category unless I explicitly say otherwise.
+
+After producing the link, do NOT include the raw JSON in your response — only the summary and the clickable link. I'll tap it to save.
+
+Here's today's workout:
+`;
+
+  return `
+    <div style="padding: 16px 20px; color: var(--text-2); font-size: 13px; line-height: 1.5;">
+      Copy this prompt, paste it into Claude on your phone, then describe your workout. Claude will give you a clickable link that saves it.
+    </div>
+    <div style="padding: 0 20px;">
+      <textarea id="claudePromptText" readonly style="width: 100%; background: var(--surface); border: 1px solid var(--border-soft); color: var(--text); padding: 14px; border-radius: 10px; min-height: 280px; font-size: 12px; font-family: -apple-system, monospace; line-height: 1.5; resize: vertical;">${escapeHtml(prompt)}</textarea>
+    </div>
+    <div style="padding: 12px 20px;">
+      <button onclick="copyClaudePrompt()" style="width: 100%; background: var(--accent); color: white; border: none; padding: 14px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit;" id="copyBtn">Copy Prompt</button>
+    </div>
+    <div style="padding: 8px 20px 20px; color: var(--text-2); font-size: 12px; line-height: 1.6;">
+      <strong style="color: var(--text); font-size: 13px;">How it works:</strong><br>
+      1. Tap "Copy Prompt" above<br>
+      2. Open Claude on your phone, paste the prompt<br>
+      3. Type or speak your workout ("did chest press 3x10 at 100, dips 3x12, ran 2mi in 22min, etc.")<br>
+      4. Claude gives you a "Save workout" link<br>
+      5. Tap it → opens this site → preview → tap Save<br><br>
+      <em>No API key required. The prompt is generic — paste it once, use it forever.</em>
+    </div>
+  `;
+}
+function copyClaudePrompt() {
+  const ta = document.getElementById('claudePromptText');
+  ta.select();
+  navigator.clipboard.writeText(ta.value).then(() => {
+    const btn = document.getElementById('copyBtn');
+    const orig = btn.textContent;
+    btn.textContent = 'Copied ✓';
+    btn.style.background = 'var(--accent-2)';
+    setTimeout(() => { btn.textContent = orig; btn.style.background = 'var(--accent)'; }, 1500);
+  });
 }
 function renderSplit() {
   return [['Monday','Chest/Tri','Push day'],['Tuesday','Back/Bi','Pull day'],['Wednesday','Shoulders','Press day'],['Thursday','Abs','Core (variable)'],['Friday','Legs','Squat / hinge']].map(([d, c, f]) => `
