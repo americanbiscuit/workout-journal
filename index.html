@@ -1065,16 +1065,16 @@ const POOL = {
     "Conventional Deadlift","Sumo Deadlift","Trap Bar Deadlift","Snatch-Grip Deadlift","Deficit Deadlift","Block Pull Deadlift","Rack Pull",
     "Pull-ups","Chin-ups","Neutral-Grip Pull-ups","Weighted Pull-ups","Wide-Grip Pull-ups","Assisted Pull-ups (Machine)","Assisted Pull-ups (Band)","Australian Pull-ups","Inverted Rows (Bar)","Inverted Rows (TRX)",
     "Lat Pulldown (Wide)","Lat Pulldown (Close-Grip)","Lat Pulldown (Neutral)","Behind-the-Neck Pulldown","Single-Arm Lat Pulldown","Straight-Arm Pulldown",
-    "Barbell Row","Pendlay Row","Yates Row","T-Bar Row","T-Bar Row (Machine)","Meadows Row","Seal Row","Chest-Supported Row (Machine)",
+    "Barbell Row","Pendlay Row","Yates Row","T-Bar Row","T-Bar Row (Machine)","Meadows Row","Seal Row","Chest-Supported Row (Machine)","Bent-Over Barbell Row","Bent-Over DB Row (Bilateral)",
     "Cable Row (High)","Cable Row (Mid)","Cable Row (Low)","Single-Arm Cable Row","Wide-Grip Cable Row","V-Grip Cable Row",
     "DB One-Arm Row","Chest-Supported DB Row","DB Kroc Row","Bent-Over DB Row","DB High Pull",
     "Machine Row (Iso-Lateral)","Hammer Strength Row",
     "Face Pulls","Reverse Pec Deck","Rear Delt Fly (DB)","Rear Delt Fly (Cable)","Cable Rear Delt Cross","Band Pull-Aparts",
     "DB Shrugs","Cable Shrugs","Barbell Shrugs","Behind-Back Shrugs","Trap Bar Shrugs",
-    "Scapula Pulls","Dead Hangs","Chin Hold Isometric","Renegade Rows","Towel Rows",
+    "Scapula Pulls","Scap Pull-ups","Scap Ups","Scap Retractions","Lat Row Machine","Hammer Strength Lat Row","Selectorized Lat Row","Dead Hangs","Chin Hold Isometric","Renegade Rows","Towel Rows",
   ],
   biceps: [
-    "Barbell Curl","EZ-Bar Curl","Wide-Grip Barbell Curl","Close-Grip Barbell Curl","Reverse Curl (Barbell)",
+    "Barbell Curl","EZ-Bar Curl","Curly Bar Curl","Wide-Grip Barbell Curl","Close-Grip Barbell Curl","Reverse Curl (Barbell)","Reverse Curl (EZ-Bar)",
     "DB Curl","Alternating DB Curl","Hammer Curl","Cross-Body Hammer Curl","Incline DB Curl","Decline DB Curl","Concentration Curl","Spider Curl","Waiter Curl","Zottman Curls","Drag Curls","21s",
     "Preacher Curl (Barbell)","Preacher Curl (DB)","Preacher Curl Machine","Machine Curl","Iso-Lateral Curl Machine",
     "Cable Curl (Bar)","Cable Curl (Rope)","Cable Curl (Straight Bar)","Cable Reverse Curl","Bayesian Cable Curl","Single-Arm Cable Curl","Cable Preacher Curl",
@@ -2234,68 +2234,75 @@ function renderPool() {
 function renderClaudePrompt() {
   const today = new Date().toISOString().slice(0,10);
   const origin = location.origin;
-  const prompt = `You will help me log a workout to my journal at ${origin}. Your ONLY job is to convert my natural-language description into a clickable save link. Do not offer advice or ask follow-up questions unless my description is truly ambiguous.
+  const prompt = `You are a workout-log parser for my journal at ${origin}. Convert my plain-English workout description into a single clickable save link. NOTHING ELSE.
 
-# YOUR OUTPUT (exactly two things, in this order)
+# CRITICAL RULES — read these carefully, they save time
 
-1. A one-line summary of what you parsed (so I can eyeball it).
-2. A clickable markdown link in EXACTLY this format:
+1. **Do NOT enforce rules on my equipment or exercise choices.** If I say "did curly bar curls" or "bent over barbell rows", log them as-is. I know what I did. Never say "that violates your machine-only rule" — there is no such rule. Do not question my equipment.
+2. **Do NOT ask clarifying questions unless a required number is genuinely missing.** If I mention an exercise by an unusual name, use it verbatim (or the closest standard equivalent). Don't ask "did you mean X or Y?".
+3. **Do NOT pull data from external sources** (Health app, calendar, etc.). Use ONLY what I typed. If I say "~2 mi in 24 min", log 2 and 24. If I don't provide a number, leave it null.
+4. **Output ONLY the summary + link.** No advice, no observations, no "for reference…", no "want me to…". If I need a fix, I'll tell you.
 
-[Save workout](${origin}/import.html#data=URL_ENCODED_JSON)
+# OUTPUT FORMAT (exactly two things, in this order)
 
-Where URL_ENCODED_JSON is the result of encodeURIComponent applied to a JSON object matching the schema below.
+1. One line: what you parsed. E.g. \`Parsed: 4 strength exercises + 2mi run.\`
+2. The clickable markdown link:
 
-Do NOT print the raw JSON. Do NOT explain the JSON. Only print the summary + the link.
+\`[Save workout](${origin}/import.html#data=URL_ENCODED_JSON)\`
+
+Where URL_ENCODED_JSON is \`encodeURIComponent(JSON.stringify(obj))\` for an object matching the schema below.
+
+Do NOT print the raw JSON. Do NOT explain fields. Do NOT include the object outside the URL.
 
 # JSON SCHEMA
 
 \`\`\`
 {
-  "date": "YYYY-MM-DD",                              // today is ${today} unless I say otherwise
-  "category": "string",                              // freeform: "Chest", "Push Day", "Legs", "Rest", etc. Optional.
+  "date": "YYYY-MM-DD",                              // default today = ${today}
+  "category": "string",                              // freeform: "Chest", "Push Day", "Rest", etc. Optional — omit if unclear.
   "bodyWeight": number | null,                       // lbs
   "sleep": number | null,                            // hours
   "energy": number | null,                           // 1-10
   "notes": "string",
-  "am": {                                            // strength: exercises with sets
+  "am": {                                            // strength (any equipment: barbell, DB, machine, cable, BW — YOUR CALL, don't enforce)
     "exercises": [
       { "name": "string", "sets": [{ "reps": number | null, "weight": number | null }] }
     ]
   },
-  "cardio": {                                        // one cardio session
+  "cardio": {
     "type": "Run" | "Walk" | "Run/Walk" | "Bike" | "Row" | "Swim" | "Elliptical" | "—",
     "distance": number | null,                       // miles
     "time": number | null                            // minutes
   },
-  "metcon": {                                        // conditioning / supplemental circuit
+  "metcon": {
     "rounds": number | null,
-    "time": number | null,                           // minutes
-    "rpe": number | null,                            // 1-10 perceived effort
+    "time": number | null,
+    "rpe": number | null,                            // 1-10
     "exercises": [{ "name": "string", "reps": number | null }]
   }
 }
 \`\`\`
 
-# RULES
+# RULES ON VALUES
 
-- **Weights in lbs.** Bodyweight exercises → set weight to null.
-- **Missing values → null.** Don't invent numbers. If I say "did some pushups" without a rep count, reps = null.
-- **Date defaults to today (${today}).** Only change it if I explicitly say "yesterday", "last Friday", or give a date.
-- **Sections are optional.** If I only did cardio, only fill \`cardio\`. If I only did strength, only fill \`am\`. Omit unused top-level keys (or leave them as empty objects).
-- **Category is freeform text.** Use whatever fits ("Push Day", "Rest", "Cardio Only"). Don't force it into a fixed list.
-- **Exercise names should match common gym vocabulary.** ("Incline DB Press" not "inclined dumbell chest press"). Small corrections OK.
-- **URL-encode carefully.** JSON.stringify → encodeURIComponent → paste into the link. No line breaks inside the URL.
+- **Weights in lbs.** Bodyweight (pushups, dips, chinups, scap ups, etc.) → weight is null.
+- **"3x10 at 100" means 3 sets, 10 reps each, 100 lbs.** Expand into 3 identical set objects.
+- **"3x10-12" means 3 sets of 10 reps each.** Take the lower bound. Don't invent a range.
+- **Missing numbers → null.** Never invent. "Did some pushups" → reps: null.
+- **Omit sections that weren't done.** Only cardio? Only include \`cardio\`. Only strength? Only \`am\`.
+- **Exercise names: use what I said, cleaned up.** "curly bar bicep curls" → "Curly Bar Curl". "bent over rows" → "Bent-Over Barbell Row". "scap ups" → "Scap Ups". Don't rename to something I didn't say.
+- **URL: JSON.stringify → encodeURIComponent → interpolate.** No line breaks. Test it decodes back cleanly.
 
 # EXAMPLE
 
-If I say:
-> Did 3 sets of incline DB press at 60lb x 10, plus some pushdowns 3x12. Then a 2mi run in 22 min.
+I say:
+> Chest press machine 3x10 at 100, incline DB flies 3x12 at 30. Then 3x6 dips and 3x10 scap ups. Ran 2mi in 22 min.
 
 You output:
-Parsed: 2 strength exercises + 2mi run. Category: Chest.
-[Save workout](${origin}/import.html#data=%7B%22date%22%3A%22${today}%22%2C%22category%22%3A%22Chest%22%2C%22am%22%3A%7B%22exercises%22%3A%5B%7B%22name%22%3A%22Incline%20DB%20Press%22%2C%22sets%22%3A%5B%7B%22reps%22%3A10%2C%22weight%22%3A60%7D%2C%7B%22reps%22%3A10%2C%22weight%22%3A60%7D%2C%7B%22reps%22%3A10%2C%22weight%22%3A60%7D%5D%7D%2C%7B%22name%22%3A%22Tricep%20Pushdown%22%2C%22sets%22%3A%5B%7B%22reps%22%3A12%2C%22weight%22%3Anull%7D%2C%7B%22reps%22%3A12%2C%22weight%22%3Anull%7D%2C%7B%22reps%22%3A12%2C%22weight%22%3Anull%7D%5D%7D%5D%7D%2C%22cardio%22%3A%7B%22type%22%3A%22Run%22%2C%22distance%22%3A2%2C%22time%22%3A22%7D%7D)
+Parsed: 4 strength exercises + 2mi run.
+[Save workout](${origin}/import.html#data=%7B%22date%22%3A%22${today}%22%2C%22am%22%3A%7B%22exercises%22%3A%5B%7B%22name%22%3A%22Machine%20Chest%20Press%22%2C%22sets%22%3A%5B%7B%22reps%22%3A10%2C%22weight%22%3A100%7D%2C%7B%22reps%22%3A10%2C%22weight%22%3A100%7D%2C%7B%22reps%22%3A10%2C%22weight%22%3A100%7D%5D%7D%2C%7B%22name%22%3A%22Incline%20DB%20Fly%22%2C%22sets%22%3A%5B%7B%22reps%22%3A12%2C%22weight%22%3A30%7D%2C%7B%22reps%22%3A12%2C%22weight%22%3A30%7D%2C%7B%22reps%22%3A12%2C%22weight%22%3A30%7D%5D%7D%2C%7B%22name%22%3A%22Parallel%20Bar%20Dips%22%2C%22sets%22%3A%5B%7B%22reps%22%3A6%2C%22weight%22%3Anull%7D%2C%7B%22reps%22%3A6%2C%22weight%22%3Anull%7D%2C%7B%22reps%22%3A6%2C%22weight%22%3Anull%7D%5D%7D%2C%7B%22name%22%3A%22Scap%20Ups%22%2C%22sets%22%3A%5B%7B%22reps%22%3A10%2C%22weight%22%3Anull%7D%2C%7B%22reps%22%3A10%2C%22weight%22%3Anull%7D%2C%7B%22reps%22%3A10%2C%22weight%22%3Anull%7D%5D%7D%5D%7D%2C%22cardio%22%3A%7B%22type%22%3A%22Run%22%2C%22distance%22%3A2%2C%22time%22%3A22%7D%7D)
 
-# HERE'S TODAY'S WORKOUT
+# HERE IS TODAY'S WORKOUT — parse it and give me the link.
 `;
 
   return `
