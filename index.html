@@ -2127,6 +2127,7 @@ function openModal(type, ...args) {
       <div class="menu-item" onclick="openModal('claudePrompt')">AI Log Prompt <span class="meta">log via any AI</span></div>
       <div class="menu-item" onclick="openModal('split')">Weekly Split <span class="meta">view</span></div>
       <div class="menu-item" onclick="location.href='/templates.html'">Day Layouts <span class="meta">customize sections</span></div>
+      <div class="menu-item" onclick="openModal('suggestions')">App Suggestions <span class="meta">send feedback</span></div>
       <div class="menu-item" onclick="toggleCategoryPill()">Show day category pill <span class="meta" id="categoryPillPrefLabel">off</span></div>
       <div class="menu-item" onclick="location.href='/pool.html'">Exercise Pool <span class="meta">browse + star</span></div>
       <div class="menu-item" onclick="location.href='/routines.html'">Routines <span class="meta">saved exercise sets</span></div>
@@ -2148,8 +2149,72 @@ function openModal(type, ...args) {
     title.textContent = 'Weekly Split';
     search.innerHTML = ''; chips.innerHTML = '';
     body.innerHTML = renderSplit();
+  } else if (type === 'suggestions') {
+    title.textContent = 'App Suggestions';
+    search.innerHTML = ''; chips.innerHTML = '';
+    body.innerHTML = `<div class="loading" style="padding:30px; text-align:center; color:var(--text-2);">Loading...</div>`;
+    renderSuggestionsModal();
   }
   document.getElementById('modalBackdrop').classList.add('show');
+}
+async function renderSuggestionsModal() {
+  const body = document.getElementById('modalBody');
+  let mine = [];
+  try {
+    const r = await fetch('/api/suggestions');
+    const d = await r.json();
+    mine = d.suggestions || [];
+  } catch {}
+  const statusColor = { new: 'var(--muted)', 'in-progress': 'var(--accent)', done: 'var(--green,#4ade80)', wontfix: 'var(--danger,#d05353)' };
+  const list = mine.length ? mine.map(s => {
+    const created = s.created_at ? new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+    return `<div style="background: var(--surface); border: 1px solid var(--border-soft); border-left: 3px solid ${statusColor[s.status] || 'var(--muted)'}; border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;">
+      <div style="font-size: 13px; color: var(--text); white-space: pre-wrap;">${escapeHtml(s.text)}</div>
+      <div style="display:flex; justify-content:space-between; margin-top:6px; font-size: 11px;">
+        <span style="text-transform: uppercase; letter-spacing: 0.6px; font-weight: 700; color: ${statusColor[s.status] || 'var(--muted)'};">${s.status || 'new'}</span>
+        <span style="color: var(--muted);">${created}</span>
+      </div>
+      ${s.admin_note ? `<div style="margin-top:6px; padding: 6px 8px; background: var(--surface-alt); border-radius: 6px; font-size: 12px; color: var(--text-2);"><strong style="color: var(--text);">Reply:</strong> ${escapeHtml(s.admin_note)}</div>` : ''}
+    </div>`;
+  }).join('') : `<div style="padding: 20px; text-align:center; color: var(--muted); font-size: 13px; font-style: italic;">No suggestions yet. Submit one below.</div>`;
+
+  body.innerHTML = `
+    <div style="padding: 16px 20px; color: var(--text-2); font-size: 13px; line-height: 1.5;">
+      Got a feature request, bug report, or idea? Send it in — Tanner reads all of them.
+    </div>
+    <div style="padding: 0 20px;">
+      <textarea id="suggestionText" placeholder="Tell me what would make this better..." style="width: 100%; background: var(--surface); border: 1px solid var(--border-soft); color: var(--text); padding: 12px; border-radius: 10px; min-height: 100px; font-size: 14px; font-family: inherit; line-height: 1.5; resize: vertical;"></textarea>
+    </div>
+    <div style="padding: 12px 20px;">
+      <button id="suggestSubmitBtn" onclick="submitSuggestion()" style="width: 100%; background: var(--accent); color: white; border: none; padding: 14px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit;">Send Suggestion</button>
+      <div id="suggestErr" style="color: var(--danger,#d05353); font-size: 12px; margin-top: 8px; display:none;"></div>
+    </div>
+    <div style="padding: 8px 20px 20px;">
+      <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 800; margin-bottom: 10px;">Your Suggestions</div>
+      ${list}
+    </div>
+  `;
+}
+async function submitSuggestion() {
+  const ta = document.getElementById('suggestionText');
+  const btn = document.getElementById('suggestSubmitBtn');
+  const err = document.getElementById('suggestErr');
+  const text = (ta.value || '').trim();
+  if (!text) { err.textContent = 'Type something first.'; err.style.display = 'block'; return; }
+  err.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Sending...';
+  try {
+    const r = await fetch('/api/suggestions', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    if (!r.ok) { const d = await r.json(); throw new Error(d.error || 'Failed'); }
+    ta.value = '';
+    await renderSuggestionsModal();
+  } catch (e) {
+    err.textContent = e.message; err.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Send Suggestion';
+  }
 }
 function closeModal() { document.getElementById('modalBackdrop').classList.remove('show'); modalContext = null; }
 function closeModalOnBackdrop(e) { if (e.target.id === 'modalBackdrop') closeModal(); }

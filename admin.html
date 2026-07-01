@@ -106,6 +106,12 @@
   </div>
 
   <div id="userList"></div>
+
+  <div class="section-header" style="margin-top: 40px;">
+    <div class="section-title">Suggestions</div>
+    <div class="subtle" id="suggestionCount" style="font-size: 12px;"></div>
+  </div>
+  <div id="suggestionList"></div>
 </main>
 
 <!-- CREATE / EDIT MODAL -->
@@ -119,10 +125,9 @@
       <input type="text" id="mUsername" autocapitalize="off" autocorrect="off" />
       <label id="mPasswordLabel">Password (8+ chars)</label>
       <input type="password" id="mPassword" minlength="8" />
-      <div class="check-row">
-        <input type="checkbox" id="mIsAdmin" />
-        <label for="mIsAdmin" style="display:inline; margin:0; text-transform:none; letter-spacing:normal; font-weight:600; font-size:14px; color:var(--text);">Admin (can manage users)</label>
-      </div>
+      <!-- Founder policy: only user id=1 (Tanner) is admin. All others are regular users.
+           The admin checkbox is intentionally hidden — the API will ignore it anyway. -->
+      <input type="hidden" id="mIsAdmin" value="" />
       <div id="mError" class="err" style="display:none"></div>
       <div class="modal-actions">
         <button type="button" class="secondary" onclick="closeModal()">Cancel</button>
@@ -143,7 +148,63 @@ async function init() {
   if (!user) { location.href = '/login.html'; return; }
   if (!user.isAdmin) { alert('Admin only'); location.href = '/'; return; }
   currentUser = user;
-  await loadUsers();
+  await Promise.all([loadUsers(), loadSuggestions()]);
+}
+
+// ============ Suggestions ============
+async function loadSuggestions() {
+  try {
+    const r = await fetch('/api/suggestions');
+    const d = await r.json();
+    renderSuggestions(d.suggestions || []);
+  } catch (e) {
+    document.getElementById('suggestionList').innerHTML = `<div class="empty">Failed to load suggestions: ${e.message}</div>`;
+  }
+}
+function renderSuggestions(list) {
+  const c = document.getElementById('suggestionList');
+  const count = document.getElementById('suggestionCount');
+  const byStatus = { new: 0, 'in-progress': 0, done: 0, wontfix: 0 };
+  list.forEach(s => { if (byStatus[s.status] !== undefined) byStatus[s.status]++; });
+  count.textContent = `${list.length} total · ${byStatus.new} new · ${byStatus['in-progress']} in progress · ${byStatus.done} done`;
+  if (!list.length) { c.innerHTML = '<div class="empty">No suggestions yet.</div>'; return; }
+  const statusColor = { new: '#6b5f4b', 'in-progress': '#e07a5f', done: '#4ade80', wontfix: '#d05353' };
+  c.innerHTML = list.map(s => {
+    const created = s.created_at ? new Date(s.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+    const who = s.user_name ? `${escapeHtml(s.user_name)} <span class="subtle">(@${escapeHtml(s.username || '?')})</span>` : `user #${s.user_id}`;
+    return `<div class="user-card" style="border-left: 4px solid ${statusColor[s.status] || '#6b5f4b'};">
+      <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
+        <div style="flex:1; min-width:0;">
+          <div style="font-weight: 800; font-size: 14px;">${who}</div>
+          <div class="subtle" style="font-size: 11px; margin-top: 2px;">${created} · ${s.status}</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap: 4px;">
+          <select onchange="updateSuggestionStatus(${s.id}, this.value)" style="font-size: 12px; padding: 4px 8px; border-radius: 6px;">
+            ${['new','in-progress','done','wontfix'].map(st => `<option value="${st}" ${st === s.status ? 'selected' : ''}>${st}</option>`).join('')}
+          </select>
+          <button onclick="deleteSuggestion(${s.id})" style="background: transparent; border: 1px solid var(--border); color: var(--danger,#d05353); padding: 4px 8px; font-size: 11px; border-radius: 6px; cursor: pointer;">Delete</button>
+        </div>
+      </div>
+      <div style="margin-top: 10px; padding: 10px 12px; background: var(--surface,#fafafa); border-radius: 8px; font-size: 13px; line-height: 1.5; white-space: pre-wrap;">${escapeHtml(s.text)}</div>
+      ${s.admin_note ? `<div style="margin-top: 6px; padding: 8px 10px; background: rgba(224,122,95,0.08); border-radius: 8px; font-size: 12px; color: var(--text-2,#6b5f4b);"><strong>Your reply:</strong> ${escapeHtml(s.admin_note)}</div>` : ''}
+      <button onclick="promptAdminNote(${s.id}, ${JSON.stringify(s.admin_note || '').replace(/"/g,'&quot;')})" style="margin-top: 6px; background: transparent; border: none; color: var(--accent); font-size: 12px; cursor: pointer; padding: 0;">${s.admin_note ? 'Edit reply' : '+ Add reply'}</button>
+    </div>`;
+  }).join('');
+}
+async function updateSuggestionStatus(id, status) {
+  await fetch(`/api/suggestions/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
+  await loadSuggestions();
+}
+async function promptAdminNote(id, current) {
+  const note = prompt('Reply to this suggestion (user will see it):', current || '');
+  if (note === null) return;
+  await fetch(`/api/suggestions/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ admin_note: note }) });
+  await loadSuggestions();
+}
+async function deleteSuggestion(id) {
+  if (!confirm('Delete this suggestion?')) return;
+  await fetch(`/api/suggestions/${id}`, { method: 'DELETE' });
+  await loadSuggestions();
 }
 
 async function loadUsers() {

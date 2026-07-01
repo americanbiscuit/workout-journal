@@ -47,3 +47,20 @@ CREATE TABLE IF NOT EXISTS schedules (
 );
 CREATE INDEX IF NOT EXISTS idx_schedules_user ON schedules(user_id);
 CREATE INDEX IF NOT EXISTS idx_schedules_start ON schedules(start_date);
+
+-- =============================================================
+-- App suggestions: any authenticated user can submit; admin sees all.
+-- status: 'new' | 'in-progress' | 'done' | 'wontfix'
+-- =============================================================
+CREATE TABLE IF NOT EXISTS suggestions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  text TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'new',
+  admin_note TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+CREATE INDEX IF NOT EXISTS idx_suggestions_user ON suggestions(user_id);
+CREATE INDEX IF NOT EXISTS idx_suggestions_status ON suggestions(status);
