@@ -81,7 +81,11 @@
   .logo .dot {
     color: var(--accent);
   }
-  .header-actions { display: flex; gap: 6px; }
+  .header-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  /* Logo + hamburger button must NEVER be squeezed off-screen. View toggle is
+     the flexible middle that shrinks first on narrow phones. */
+  .logo { flex-shrink: 0; }
+  .icon-btn { flex-shrink: 0; }
   .icon-btn {
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid var(--header-border);
@@ -722,6 +726,24 @@
     .month-cell-day { font-size: 12px; }
     .month-cell-cat { font-size: 7px; }
     .month-cell-dots .dot { width: 5px; height: 5px; }
+  }
+
+  /* Mobile header: compress everything so the hamburger button never gets
+     pushed off the right edge of the screen. */
+  @media (max-width: 640px) {
+    header { padding: calc(14px + env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 14px max(12px, env(safe-area-inset-left)); gap: 8px; }
+    .logo { font-size: 17px; }
+    .view-toggle { padding: 3px; }
+    .view-toggle button { padding: 6px 10px; font-size: 12px; letter-spacing: 0.2px; }
+    .user-badge { padding: 6px 8px; font-size: 11px; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .user-badge .badge-label { display: none; }
+    .icon-btn { width: 36px; height: 36px; font-size: 20px; }
+  }
+  @media (max-width: 380px) {
+    /* Really tight iPhone SE / older widths: hide the user badge entirely
+       (still available from the menu) so the hamburger has room to breathe. */
+    .user-badge:not(.impersonating) { display: none; }
+    .view-toggle button { padding: 5px 8px; font-size: 11px; }
   }
 
   /* ============ MODAL ============ */
