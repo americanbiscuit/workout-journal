@@ -345,7 +345,9 @@
   .sets-header div:nth-child(1) { text-align: center; }
   .set-row {
     display: grid;
-    grid-template-columns: 40px 1fr 1fr 32px;
+    /* minmax(0, 1fr) so grid items can shrink below their content width — without
+       this the input placeholders forced the row wider than the viewport on phones. */
+    grid-template-columns: 40px minmax(0, 1fr) minmax(0, 1fr) 32px;
     gap: 10px;
     align-items: center;
     padding: 10px 0;
@@ -438,9 +440,15 @@
     display: grid;
     gap: 12px;
   }
-  .pm-row.two { grid-template-columns: 1fr 1fr; }
-  .pm-row.three { grid-template-columns: 1fr 1fr 1fr; }
-  .input-group { display: flex; flex-direction: column; }
+  /* minmax(0, 1fr) prevents grid items from stretching past viewport on phones
+     when their content (input placeholders, long labels) is wider than 1fr. */
+  .pm-row.two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .pm-row.three { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); }
+  .input-group { display: flex; flex-direction: column; min-width: 0; }
+  .input-group input, .input-group select { min-width: 0; width: 100%; }
+  .set-row input { min-width: 0; }
+  /* Belt-and-suspenders: no input/textarea should EVER exceed its parent width. */
+  input, select, textarea { max-width: 100%; }
   .input-group label {
     font-size: 10px;
     color: var(--muted);
@@ -477,7 +485,7 @@
 
   .metcon-row {
     display: grid;
-    grid-template-columns: 1fr 90px 32px;
+    grid-template-columns: minmax(0, 1fr) 90px 32px;
     gap: 10px;
     align-items: center;
     padding: 10px 0;
