@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#1F1B17" />
-<title>Sign in — Workout Journal</title>
+<title>Sign up — Workout Journal</title>
 <style>
   :root {
     --bg: #F1EBDF; --surface: #F8F4EC; --surface-alt: #E8E0D0; --border: #DBD2BF;
@@ -79,18 +79,20 @@
 
 <main>
   <div class="card">
-    <h1>Sign in</h1>
-    <p class="subtle">Welcome back. Log into your workout journal.</p>
-    <form onsubmit="event.preventDefault(); login();">
+    <h1>Create account</h1>
+    <p class="subtle">Start tracking your workouts.</p>
+    <form onsubmit="event.preventDefault(); signup();">
+      <label>Display name</label>
+      <input id="name" type="text" autocomplete="name" placeholder="Tanner" />
       <label>Username</label>
-      <input id="username" type="text" autocomplete="username" autocapitalize="off" autocorrect="off" required />
-      <label>Password</label>
-      <input id="password" type="password" autocomplete="current-password" required />
-      <button id="submitBtn" type="submit">Sign in</button>
+      <input id="username" type="text" autocomplete="username" autocapitalize="off" autocorrect="off" placeholder="3-32 chars" required />
+      <label>Password (8+ chars)</label>
+      <input id="password" type="password" autocomplete="new-password" minlength="8" required />
+      <button id="submitBtn" type="submit">Create account</button>
     </form>
     <div id="error" style="display:none" class="error"></div>
     <div class="foot">
-      New here?<a href="/signup.html">Create an account</a>
+      Already have an account?<a href="/login.html">Sign in</a>
     </div>
   </div>
 </main>
@@ -110,35 +112,50 @@ async function checkMe() {
     if (user) location.href = '/';
   } catch {}
 }
-async function login() {
+async function checkSignupOpen() {
+  try {
+    const r = await fetch('/api/signup');
+    const { signupEnabled } = await r.json();
+    if (!signupEnabled) {
+      const err = document.getElementById('error');
+      err.textContent = 'Public signup is disabled. Ask an admin to create your account.';
+      err.style.display = 'block';
+      document.getElementById('submitBtn').disabled = true;
+    }
+  } catch {}
+}
+async function signup() {
   const btn = document.getElementById('submitBtn');
   const err = document.getElementById('error');
   err.style.display = 'none';
   btn.disabled = true;
-  btn.textContent = 'Signing in...';
+  btn.textContent = 'Creating...';
   try {
-    const r = await fetch('/api/login', {
+    const r = await fetch('/api/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        name: document.getElementById('name').value,
         username: document.getElementById('username').value,
         password: document.getElementById('password').value,
       }),
     });
     if (!r.ok) {
-      const { error } = await r.json();
-      throw new Error(error || 'Login failed');
+      const body = await r.json();
+      if (body.setupNeeded) { location.href = '/setup.html'; return; }
+      throw new Error(body.error || 'Sign up failed');
     }
     location.href = '/';
   } catch (e) {
     err.textContent = e.message;
     err.style.display = 'block';
     btn.disabled = false;
-    btn.textContent = 'Sign in';
+    btn.textContent = 'Create account';
   }
 }
 checkSetup();
 checkMe();
+checkSignupOpen();
 </script>
 </body>
 </html>
