@@ -200,6 +200,9 @@
         <label>Name</label>
         <input type="text" id="tplName" placeholder="Push Day, Rest Day, Cardio Only..." />
 
+        <label>Focus / category <span style="color: var(--muted); font-weight: 400; text-transform: none; letter-spacing: 0; font-size: 11px;">(optional — shown as a chip on days using this template)</span></label>
+        <input type="text" id="tplCategory" placeholder="Push, Pull, Legs, Rest, Cardio..." />
+
         <div style="margin-top: 14px; display: flex; align-items: center; gap: 8px;">
           <input type="checkbox" id="tplIsDefault" style="width:auto; margin: 0;" />
           <label for="tplIsDefault" style="margin: 0; text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 500;">Use as default (fallback when no schedule matches)</label>
@@ -337,6 +340,7 @@ function renderTemplates() {
         <div>
           <div class="name-row">
             <span class="name">${escapeHtml(t.name)}</span>
+            ${t.category ? `<span class="badge" style="background: rgba(224,122,95,0.15); color: var(--accent);">${escapeHtml(t.category)}</span>` : ''}
             ${t.is_default ? '<span class="badge">Default</span>' : ''}
           </div>
           <div class="sections-summary">${(t.sections || []).map(s => `<strong>${escapeHtml(s.title || DEFAULT_TITLES[s.type] || s.type)}</strong> <span style="color:var(--muted)">(${s.type})</span>`).join(' · ') || '<em>No sections</em>'}</div>
@@ -389,6 +393,7 @@ function openTemplateModal() {
   ];
   document.getElementById('templateModalTitle').textContent = 'New Template';
   document.getElementById('tplName').value = '';
+  document.getElementById('tplCategory').value = '';
   document.getElementById('tplIsDefault').checked = false;
   renderTplSections();
   document.getElementById('templateModal').classList.add('show');
@@ -400,6 +405,7 @@ function editTemplate(id) {
   STATE.tplSectionsDraft = JSON.parse(JSON.stringify(t.sections || []));
   document.getElementById('templateModalTitle').textContent = 'Edit Template';
   document.getElementById('tplName').value = t.name;
+  document.getElementById('tplCategory').value = t.category || '';
   document.getElementById('tplIsDefault').checked = !!t.is_default;
   renderTplSections();
   document.getElementById('templateModal').classList.add('show');
@@ -455,6 +461,7 @@ async function saveTemplate() {
   if (!name) return alert('Give it a name');
   const body = {
     name,
+    category: document.getElementById('tplCategory').value.trim(),
     is_default: document.getElementById('tplIsDefault').checked,
     sections: STATE.tplSectionsDraft,
   };

@@ -11,6 +11,7 @@ import { getCurrentUser, unauthorized } from '../_lib/auth.js';
 const GENERIC_TEMPLATE = {
   id: null,
   name: 'Today',
+  category: '',
   sections: [
     { type: 'strength', title: "Today's Workout", subtitle: '' },
     { type: 'notes',    title: 'Notes',           subtitle: '' },
@@ -63,17 +64,17 @@ export async function onRequestGet(context) {
   let templateRow = null;
   if (templateId) {
     templateRow = await context.env.DB.prepare(
-      "SELECT id, name, sections, is_default FROM day_templates WHERE id = ? AND user_id = ?"
+      "SELECT id, name, sections, category, is_default FROM day_templates WHERE id = ? AND user_id = ?"
     ).bind(templateId, user.id).first();
   }
   if (!templateRow) {
     templateRow = await context.env.DB.prepare(
-      "SELECT id, name, sections, is_default FROM day_templates WHERE user_id = ? AND is_default = 1 LIMIT 1"
+      "SELECT id, name, sections, category, is_default FROM day_templates WHERE user_id = ? AND is_default = 1 LIMIT 1"
     ).bind(user.id).first();
   }
   if (!templateRow) {
     templateRow = await context.env.DB.prepare(
-      "SELECT id, name, sections, is_default FROM day_templates WHERE user_id = ? ORDER BY id ASC LIMIT 1"
+      "SELECT id, name, sections, category, is_default FROM day_templates WHERE user_id = ? ORDER BY id ASC LIMIT 1"
     ).bind(user.id).first();
   }
 
@@ -82,6 +83,7 @@ export async function onRequestGet(context) {
     template = {
       id: templateRow.id,
       name: templateRow.name,
+      category: templateRow.category || '',
       sections: safeParse(templateRow.sections, []),
       is_default: !!templateRow.is_default,
       is_generic: false,

@@ -14,14 +14,15 @@ export async function onRequestPut(context) {
     ).bind(id, user.id).first();
     if (!owned) return forbidden();
     const name = (body.name || '').trim();
+    const category = (body.category || '').trim() || null;
     const sections = Array.isArray(body.sections) ? body.sections : [];
     const isDefault = body.is_default ? 1 : 0;
     if (isDefault) {
       await context.env.DB.prepare("UPDATE day_templates SET is_default = 0 WHERE user_id = ? AND id != ?").bind(user.id, id).run();
     }
     await context.env.DB.prepare(
-      "UPDATE day_templates SET name = ?, sections = ?, is_default = ?, updated_at = ? WHERE id = ?"
-    ).bind(name, JSON.stringify(sections), isDefault, new Date().toISOString(), id).run();
+      "UPDATE day_templates SET name = ?, sections = ?, category = ?, is_default = ?, updated_at = ? WHERE id = ?"
+    ).bind(name, JSON.stringify(sections), category, isDefault, new Date().toISOString(), id).run();
     return Response.json({ ok: true });
   } catch (e) {
     return Response.json({ error: e.message }, { status: 500 });
