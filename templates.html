@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#1a1a1a" />
+<title>Templates &amp; Schedule · Workout Journal</title>
+<style>
+  :root {
+    --bg: #f6efe4;
+    --surface: #ffffff;
+    --surface-2: #f0e8dc;
+    --border: #d8ceb8;
+    --text: #201a10;
+    --text-2: #6b5f4b;
+    --muted: #8a7d67;
+    --accent: #e07a5f;
+    --accent-soft: rgba(224, 122, 95, 0.15);
+    --danger: #d05353;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.45;
+    min-height: 100vh;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .app-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: #1a1a1a;
+    color: white;
+    padding: calc(12px + var(--safe-top)) 16px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .app-header .logo { font-weight: 800; font-size: 15px; display: flex; align-items: center; gap: 8px; color: white; }
+  .app-header nav { display: flex; gap: 4px; flex: 1; overflow-x: auto; }
+  .app-header nav a {
+    padding: 8px 12px; border-radius: 8px; font-size: 12px; font-weight: 700;
+    color: rgba(255,255,255,0.7); white-space: nowrap;
+  }
+  .app-header nav a.active { background: rgba(224, 122, 95, 0.25); color: #f2a288; }
+  .app-header nav a:hover:not(.active) { color: white; }
+
+  .container { max-width: 780px; margin: 0 auto; padding: 20px 16px calc(40px + var(--safe-bottom)); }
+  h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; margin: 0 0 4px; }
+  h2 { font-size: 16px; font-weight: 800; margin: 28px 0 12px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-2); }
+  .lede { color: var(--text-2); font-size: 13px; margin-bottom: 20px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+
+  .btn {
+    background: var(--accent); color: white; border: none;
+    padding: 10px 16px; border-radius: 10px;
+    font-size: 13px; font-weight: 800; cursor: pointer; font-family: inherit;
+    min-height: 40px;
+  }
+  .btn:hover { transform: translateY(-1px); }
+  .btn.secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+  .btn.danger { background: var(--danger); color: white; }
+  .btn.small { padding: 6px 12px; font-size: 12px; min-height: 32px; }
+  .btn.ghost { background: transparent; color: var(--text-2); border: 1px dashed var(--border); }
+
+  input[type="text"], input[type="date"], input[type="number"], select, textarea {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  label { display: block; font-size: 11px; color: var(--text-2); text-transform: uppercase; letter-spacing: 1.2px; font-weight: 700; margin: 12px 0 6px; }
+
+  .empty { padding: 30px 20px; text-align: center; color: var(--text-2); font-style: italic; font-size: 13px; }
+  .loading { padding: 20px; text-align: center; color: var(--text-2); font-size: 13px; }
+
+  /* Template card */
+  .tmpl-card { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: start; }
+  .tmpl-card .name-row { display: flex; align-items: center; gap: 8px; }
+  .tmpl-card .name { font-weight: 800; font-size: 15px; }
+  .tmpl-card .badge {
+    background: var(--accent-soft); color: var(--accent); font-size: 10px; font-weight: 800;
+    padding: 2px 7px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.6px;
+  }
+  .tmpl-card .sections-summary { color: var(--text-2); font-size: 12px; margin-top: 4px; }
+  .tmpl-card .actions { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+
+  /* Schedule card */
+  .sched-card .name-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .sched-card .name { font-weight: 800; font-size: 15px; }
+  .sched-card .range { color: var(--text-2); font-size: 12px; }
+  .sched-card .actions { display: flex; gap: 6px; margin-top: 10px; }
+  .weekly-preview { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 8px; }
+  .weekly-preview .cell {
+    background: var(--surface-2); border: 1px solid var(--border);
+    padding: 6px 4px; border-radius: 8px; text-align: center; font-size: 10px;
+  }
+  .weekly-preview .cell .dow { color: var(--text-2); font-weight: 800; text-transform: uppercase; }
+  .weekly-preview .cell .tpl { color: var(--text); font-weight: 700; margin-top: 3px; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .weekly-preview .cell.filled { background: var(--accent-soft); border-color: var(--accent); }
+
+  /* Modal */
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; display: none; align-items: flex-end; justify-content: center; padding: 0; }
+  .modal.show { display: flex; }
+  .modal-card {
+    background: var(--bg); border-top-left-radius: 20px; border-top-right-radius: 20px;
+    max-width: 620px; width: 100%; max-height: 92vh;
+    display: flex; flex-direction: column; overflow: hidden;
+    border: 1px solid var(--border); border-bottom: none;
+  }
+  .modal-head { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .modal-head .title { font-size: 18px; font-weight: 800; }
+  .modal-close { background: var(--surface); border: 1px solid var(--border); color: var(--text); width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-weight: 700; }
+  .modal-body { padding: 16px 20px; overflow-y: auto; }
+  .modal-foot { padding: 12px 20px calc(20px + var(--safe-bottom)); border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; background: var(--bg); }
+
+  /* Section editor row */
+  .section-row {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 12px;
+    margin-bottom: 8px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 8px 10px;
+    align-items: center;
+  }
+  .section-row .handle {
+    color: var(--muted); font-size: 16px; padding: 6px 4px; cursor: grab;
+    user-select: none;
+  }
+  .section-row .fields { display: contents; }
+  .section-row .type-select { padding: 6px 8px; font-size: 12px; }
+  .section-row .row-actions { display: flex; gap: 4px; }
+  .section-row .row-actions button { padding: 4px 8px; font-size: 11px; min-height: 26px; }
+  .section-row .row-title-input,
+  .section-row .row-subtitle-input {
+    grid-column: 2 / 3;
+    padding: 6px 10px; font-size: 13px;
+  }
+  .section-row .row-subtitle-input { font-size: 12px; color: var(--text-2); font-style: italic; }
+  .section-type-hint { grid-column: 1 / -1; font-size: 11px; color: var(--muted); padding-left: 32px; }
+
+  .day-of-week-grid { display: grid; grid-template-columns: 60px 1fr; gap: 8px; margin-top: 8px; }
+  .day-of-week-grid .dow-label { font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--text-2); font-size: 11px; align-self: center; }
+  .day-of-week-grid select { font-size: 13px; }
+</style>
+</head>
+<body>
+  <header class="app-header">
+    <a href="/" class="logo">Workout Journal</a>
+    <nav>
+      <a href="/">Log</a>
+      <a href="/templates.html" class="active">Templates</a>
+      <a href="/pool.html">Pool</a>
+      <a href="/routines.html">Routines</a>
+    </nav>
+  </header>
+
+  <div class="container">
+    <h1>Templates &amp; Schedule</h1>
+    <p class="lede">Templates define the layout of a day (which sections show up + what they're called). Schedules assign a template to each day of the week for a chosen duration.</p>
+
+    <h2>Day Templates</h2>
+    <div id="templatesList"><div class="loading">Loading templates...</div></div>
+    <button class="btn" onclick="openTemplateModal()">+ New Template</button>
+
+    <h2 style="margin-top: 36px;">Schedules</h2>
+    <div id="schedulesList"><div class="loading">Loading schedules...</div></div>
+    <button class="btn" onclick="openScheduleModal()" id="newScheduleBtn">+ New Schedule</button>
+  </div>
+
+  <!-- ============================== Template modal ============================== -->
+  <div class="modal" id="templateModal" onclick="if(event.target.id==='templateModal') closeTemplateModal()">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div class="title" id="templateModalTitle">New Template</div>
+        <button class="modal-close" onclick="closeTemplateModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <label>Name</label>
+        <input type="text" id="tplName" placeholder="Push Day, Rest Day, Cardio Only..." />
+
+        <div style="margin-top: 14px; display: flex; align-items: center; gap: 8px;">
+          <input type="checkbox" id="tplIsDefault" style="width:auto; margin: 0;" />
+          <label for="tplIsDefault" style="margin: 0; text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 500;">Use as default (fallback when no schedule matches)</label>
+        </div>
+
+        <label style="margin-top: 20px;">Sections (top to bottom = day order)</label>
+        <div id="tplSections"></div>
+        <button class="btn ghost" onclick="addSection()" style="width: 100%; margin-top: 8px;">+ Add Section</button>
+
+        <div style="margin-top: 14px; font-size: 11px; color: var(--muted); line-height: 1.5;">
+          <strong>Section types:</strong>
+          <ul style="margin: 4px 0 0 16px; padding: 0;">
+            <li><strong>Strength</strong> — exercises with sets (weight × reps)</li>
+            <li><strong>Cardio</strong> — type/distance/time/RPE</li>
+            <li><strong>Metcon</strong> — rounds/time/RPE + movement list</li>
+            <li><strong>Notes</strong> — free-form text</li>
+            <li><strong>Custom</strong> — labeled free-form area (write anything)</li>
+          </ul>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn secondary" onclick="closeTemplateModal()">Cancel</button>
+        <button class="btn" onclick="saveTemplate()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================== Schedule modal ============================== -->
+  <div class="modal" id="scheduleModal" onclick="if(event.target.id==='scheduleModal') closeScheduleModal()">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div class="title" id="scheduleModalTitle">New Schedule</div>
+        <button class="modal-close" onclick="closeScheduleModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <label>Name</label>
+        <input type="text" id="schedName" placeholder="Cutting Phase, Base Building..." />
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px;">
+          <div>
+            <label>Start date</label>
+            <input type="date" id="schedStart" />
+          </div>
+          <div>
+            <label>Duration</label>
+            <select id="schedDuration">
+              <option value="7">1 week</option>
+              <option value="14">2 weeks</option>
+              <option value="21">3 weeks</option>
+              <option value="28">4 weeks</option>
+              <option value="42">6 weeks</option>
+              <option value="56">8 weeks</option>
+              <option value="70">10 weeks</option>
+              <option value="84">12 weeks</option>
+              <option value="30">1 month</option>
+              <option value="60">2 months</option>
+              <option value="90">3 months</option>
+              <option value="180">6 months</option>
+              <option value="">Indefinite</option>
+            </select>
+          </div>
+        </div>
+
+        <label style="margin-top: 20px;">Weekly pattern — pick a template per day</label>
+        <div class="day-of-week-grid" id="schedWeeklyGrid"></div>
+
+        <div style="margin-top: 14px; font-size: 11px; color: var(--muted); line-height: 1.5;">
+          Later schedules override earlier ones. Days you leave blank fall back to your default template.
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn secondary" onclick="closeScheduleModal()">Cancel</button>
+        <button class="btn" onclick="saveSchedule()">Save</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+const DOW_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const SECTION_TYPES = [
+  { value: 'strength', label: 'Strength' },
+  { value: 'cardio',   label: 'Cardio' },
+  { value: 'metcon',   label: 'Metcon' },
+  { value: 'notes',    label: 'Notes' },
+  { value: 'custom',   label: 'Custom' },
+];
+const DEFAULT_TITLES = {
+  strength: 'Strength',
+  cardio:   'Cardio',
+  metcon:   'Metcon',
+  notes:    'Notes',
+  custom:   'Notes',
+};
+
+let STATE = {
+  user: null,
+  templates: [],
+  schedules: [],
+  editingTemplateId: null,
+  editingScheduleId: null,
+  tplSectionsDraft: [],
+  schedWeeklyDraft: {},
+};
+
+async function init() {
+  const meRes = await fetch('/api/me');
+  const meData = await meRes.json();
+  if (!meData.user) { window.location.href = '/login.html'; return; }
+  STATE.user = meData.user;
+  await Promise.all([loadTemplates(), loadSchedules()]);
+}
+
+async function loadTemplates() {
+  const r = await fetch('/api/templates');
+  const d = await r.json();
+  STATE.templates = d.templates || [];
+  renderTemplates();
+}
+async function loadSchedules() {
+  const r = await fetch('/api/schedules');
+  const d = await r.json();
+  STATE.schedules = d.schedules || [];
+  renderSchedules();
+}
+
+function renderTemplates() {
+  const list = document.getElementById('templatesList');
+  if (!STATE.templates.length) {
+    list.innerHTML = '<div class="empty">No templates yet. Create your first one below.</div>';
+    return;
+  }
+  list.innerHTML = STATE.templates.map(t => `
+    <div class="card">
+      <div class="tmpl-card">
+        <div>
+          <div class="name-row">
+            <span class="name">${escapeHtml(t.name)}</span>
+            ${t.is_default ? '<span class="badge">Default</span>' : ''}
+          </div>
+          <div class="sections-summary">${(t.sections || []).map(s => `<strong>${escapeHtml(s.title || DEFAULT_TITLES[s.type] || s.type)}</strong> <span style="color:var(--muted)">(${s.type})</span>`).join(' · ') || '<em>No sections</em>'}</div>
+        </div>
+        <div class="actions">
+          <button class="btn small secondary" onclick="editTemplate(${t.id})">Edit</button>
+          <button class="btn small danger" onclick="deleteTemplate(${t.id}, ${JSON.stringify(t.name).replace(/"/g,'&quot;')})">×</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderSchedules() {
+  const list = document.getElementById('schedulesList');
+  if (!STATE.schedules.length) {
+    list.innerHTML = '<div class="empty">No schedules yet. Create one below to assign templates to days.</div>';
+    return;
+  }
+  const templatesById = new Map(STATE.templates.map(t => [t.id, t]));
+  list.innerHTML = STATE.schedules.map(s => {
+    const endStr = s.duration_days ? formatDateAdd(s.start_date, s.duration_days - 1) : null;
+    return `
+      <div class="card sched-card">
+        <div class="name-row">
+          <span class="name">${escapeHtml(s.name)}</span>
+        </div>
+        <div class="range">${escapeHtml(formatDate(s.start_date))} → ${endStr ? escapeHtml(formatDate(endStr)) : 'Indefinite'}${s.duration_days ? ` <span style="color:var(--muted)">(${s.duration_days} days)</span>` : ''}</div>
+        <div class="weekly-preview">
+          ${[0,1,2,3,4,5,6].map(dow => {
+            const tplId = s.weekly_map[String(dow)];
+            const tpl = tplId ? templatesById.get(parseInt(tplId)) : null;
+            return `<div class="cell ${tpl ? 'filled' : ''}"><div class="dow">${DOW_NAMES[dow]}</div><div class="tpl">${tpl ? escapeHtml(tpl.name) : '—'}</div></div>`;
+          }).join('')}
+        </div>
+        <div class="actions">
+          <button class="btn small secondary" onclick="editSchedule(${s.id})">Edit</button>
+          <button class="btn small danger" onclick="deleteSchedule(${s.id}, ${JSON.stringify(s.name).replace(/"/g,'&quot;')})">Delete</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ============================== Template modal ==============================
+function openTemplateModal() {
+  STATE.editingTemplateId = null;
+  STATE.tplSectionsDraft = [
+    { type: 'strength', title: 'Strength', subtitle: '' },
+  ];
+  document.getElementById('templateModalTitle').textContent = 'New Template';
+  document.getElementById('tplName').value = '';
+  document.getElementById('tplIsDefault').checked = false;
+  renderTplSections();
+  document.getElementById('templateModal').classList.add('show');
+}
+function editTemplate(id) {
+  const t = STATE.templates.find(x => x.id === id);
+  if (!t) return;
+  STATE.editingTemplateId = id;
+  STATE.tplSectionsDraft = JSON.parse(JSON.stringify(t.sections || []));
+  document.getElementById('templateModalTitle').textContent = 'Edit Template';
+  document.getElementById('tplName').value = t.name;
+  document.getElementById('tplIsDefault').checked = !!t.is_default;
+  renderTplSections();
+  document.getElementById('templateModal').classList.add('show');
+}
+function closeTemplateModal() { document.getElementById('templateModal').classList.remove('show'); }
+
+function renderTplSections() {
+  const box = document.getElementById('tplSections');
+  if (!STATE.tplSectionsDraft.length) {
+    box.innerHTML = '<div class="empty" style="padding:14px;">No sections yet. Add one below.</div>';
+    return;
+  }
+  box.innerHTML = STATE.tplSectionsDraft.map((s, i) => `
+    <div class="section-row">
+      <div class="handle">≡</div>
+      <select class="type-select" onchange="updateSection(${i}, 'type', this.value)">
+        ${SECTION_TYPES.map(t => `<option value="${t.value}" ${s.type === t.value ? 'selected' : ''}>${t.label}</option>`).join('')}
+      </select>
+      <div class="row-actions">
+        <button class="btn small secondary" onclick="moveSection(${i}, -1)" ${i === 0 ? 'disabled' : ''}>↑</button>
+        <button class="btn small secondary" onclick="moveSection(${i}, 1)" ${i === STATE.tplSectionsDraft.length - 1 ? 'disabled' : ''}>↓</button>
+        <button class="btn small danger" onclick="removeSection(${i})">×</button>
+      </div>
+      <input class="row-title-input" type="text" placeholder="Title (e.g. Morning Strength)" value="${escapeAttr(s.title || '')}" oninput="updateSection(${i}, 'title', this.value)" />
+      <input class="row-subtitle-input" type="text" placeholder="Optional subtitle (e.g. machines + DBs)" value="${escapeAttr(s.subtitle || '')}" oninput="updateSection(${i}, 'subtitle', this.value)" />
+    </div>
+  `).join('');
+}
+function addSection() {
+  STATE.tplSectionsDraft.push({ type: 'strength', title: 'Strength', subtitle: '' });
+  renderTplSections();
+}
+function updateSection(i, field, value) {
+  STATE.tplSectionsDraft[i][field] = value;
+  if (field === 'type' && !STATE.tplSectionsDraft[i].title) {
+    STATE.tplSectionsDraft[i].title = DEFAULT_TITLES[value] || '';
+    renderTplSections();
+  }
+}
+function moveSection(i, delta) {
+  const j = i + delta;
+  if (j < 0 || j >= STATE.tplSectionsDraft.length) return;
+  [STATE.tplSectionsDraft[i], STATE.tplSectionsDraft[j]] = [STATE.tplSectionsDraft[j], STATE.tplSectionsDraft[i]];
+  renderTplSections();
+}
+function removeSection(i) {
+  STATE.tplSectionsDraft.splice(i, 1);
+  renderTplSections();
+}
+
+async function saveTemplate() {
+  const name = document.getElementById('tplName').value.trim();
+  if (!name) return alert('Give it a name');
+  const body = {
+    name,
+    is_default: document.getElementById('tplIsDefault').checked,
+    sections: STATE.tplSectionsDraft,
+  };
+  const url = STATE.editingTemplateId ? `/api/templates/${STATE.editingTemplateId}` : '/api/templates';
+  const method = STATE.editingTemplateId ? 'PUT' : 'POST';
+  const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) { const d = await r.json(); return alert(d.error || 'Save failed'); }
+  closeTemplateModal();
+  await loadTemplates();
+  renderSchedules();  // Refresh weekly previews too
+}
+
+async function deleteTemplate(id, name) {
+  if (!confirm(`Delete template "${name}"? Any schedules using it will unbind that day.`)) return;
+  await fetch(`/api/templates/${id}`, { method: 'DELETE' });
+  await Promise.all([loadTemplates(), loadSchedules()]);
+}
+
+// ============================== Schedule modal ==============================
+function openScheduleModal() {
+  if (!STATE.templates.length) return alert('Create at least one template first');
+  STATE.editingScheduleId = null;
+  STATE.schedWeeklyDraft = {};
+  document.getElementById('scheduleModalTitle').textContent = 'New Schedule';
+  document.getElementById('schedName').value = '';
+  document.getElementById('schedStart').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('schedDuration').value = '28';
+  renderWeeklyGrid();
+  document.getElementById('scheduleModal').classList.add('show');
+}
+function editSchedule(id) {
+  const s = STATE.schedules.find(x => x.id === id);
+  if (!s) return;
+  STATE.editingScheduleId = id;
+  STATE.schedWeeklyDraft = { ...(s.weekly_map || {}) };
+  document.getElementById('scheduleModalTitle').textContent = 'Edit Schedule';
+  document.getElementById('schedName').value = s.name;
+  document.getElementById('schedStart').value = s.start_date;
+  document.getElementById('schedDuration').value = s.duration_days == null ? '' : String(s.duration_days);
+  renderWeeklyGrid();
+  document.getElementById('scheduleModal').classList.add('show');
+}
+function closeScheduleModal() { document.getElementById('scheduleModal').classList.remove('show'); }
+
+function renderWeeklyGrid() {
+  const grid = document.getElementById('schedWeeklyGrid');
+  grid.innerHTML = [0,1,2,3,4,5,6].map(dow => {
+    const selectedId = STATE.schedWeeklyDraft[String(dow)];
+    return `
+      <div class="dow-label">${DOW_NAMES[dow]}</div>
+      <select onchange="updateWeeklyMap(${dow}, this.value)">
+        <option value="">— use default —</option>
+        ${STATE.templates.map(t => `<option value="${t.id}" ${String(selectedId) === String(t.id) ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('')}
+      </select>
+    `;
+  }).join('');
+}
+function updateWeeklyMap(dow, tplId) {
+  if (tplId === '' || tplId == null) delete STATE.schedWeeklyDraft[String(dow)];
+  else STATE.schedWeeklyDraft[String(dow)] = parseInt(tplId);
+}
+
+async function saveSchedule() {
+  const name = document.getElementById('schedName').value.trim();
+  const startDate = document.getElementById('schedStart').value;
+  const durationRaw = document.getElementById('schedDuration').value;
+  if (!name) return alert('Give it a name');
+  if (!startDate) return alert('Pick a start date');
+  const body = {
+    name,
+    start_date: startDate,
+    duration_days: durationRaw === '' ? null : parseInt(durationRaw),
+    weekly_map: STATE.schedWeeklyDraft,
+  };
+  const url = STATE.editingScheduleId ? `/api/schedules/${STATE.editingScheduleId}` : '/api/schedules';
+  const method = STATE.editingScheduleId ? 'PUT' : 'POST';
+  const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) { const d = await r.json(); return alert(d.error || 'Save failed'); }
+  closeScheduleModal();
+  await loadSchedules();
+}
+
+async function deleteSchedule(id, name) {
+  if (!confirm(`Delete schedule "${name}"?`)) return;
+  await fetch(`/api/schedules/${id}`, { method: 'DELETE' });
+  await loadSchedules();
+}
+
+// ============================== Helpers ==============================
+function formatDate(iso) {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+function formatDateAdd(iso, addDays) {
+  const [y, m, d] = iso.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + addDays);
+  return dt.toISOString().slice(0, 10);
+}
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function escapeAttr(s) { return escapeHtml(s); }
+
+init();
+</script>
+</body>
+</html>

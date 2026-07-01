@@ -915,69 +915,15 @@
       <button class="category-pill" id="categoryPill" onclick="openModal('category')">LEGS</button>
     </div>
 
-    <!-- AM STRENGTH -->
-    <div class="section">
-      <div class="section-header">
-        <div class="section-title">Morning Strength</div>
-        <div class="section-sub">machines + DBs</div>
-      </div>
-      <div id="amList"></div>
-      <button class="add-exercise-btn" onclick="openModal('picker', 'am')">Add Exercise</button>
+    <!-- Template pill: shows which template is active for this date (from schedule → weekly map → template) -->
+    <div id="templatePill" style="display:none; margin: 0 auto 14px; text-align:center; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; font-weight: 700;">
+      <span id="templatePillText"></span> · <a href="/templates.html" style="color: var(--accent);">Customize</a>
     </div>
 
-    <!-- PM CARDIO -->
-    <div class="section">
-      <div class="section-header">
-        <div class="section-title">Afternoon Cardio</div>
-      </div>
-      <div class="pm-card">
-        <div class="pm-row three">
-          <div class="input-group">
-            <label>Type</label>
-            <select id="cardioType" onchange="autoSave()">
-              <option>Run</option><option>Walk</option><option>Run/Walk</option>
-              <option>Bike</option><option>Row</option><option>—</option>
-            </select>
-          </div>
-          <div class="input-group">
-            <label>Distance (mi)</label>
-            <input type="number" step="0.1" id="cardioDist" value="2" onchange="autoSave()" />
-          </div>
-          <div class="input-group">
-            <label>Time (min)</label>
-            <input type="number" step="0.1" id="cardioTime" onchange="autoSave()" />
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- Dynamic sections rendered from the resolved template -->
+    <div id="daySections"></div>
 
-    <!-- PM METCON -->
-    <div class="section">
-      <div class="section-header">
-        <div class="section-title">Afternoon Metcon</div>
-        <div class="section-sub">supplement work</div>
-      </div>
-      <div class="pm-card">
-        <div class="pm-row three" style="margin-bottom: 14px">
-          <div class="input-group">
-            <label>Rounds</label>
-            <input type="number" id="metconRounds" onchange="autoSave()" />
-          </div>
-          <div class="input-group">
-            <label>Time (min)</label>
-            <input type="number" step="0.5" id="metconTime" onchange="autoSave()" />
-          </div>
-          <div class="input-group">
-            <label>RPE /10</label>
-            <input type="number" min="1" max="10" id="metconRPE" onchange="autoSave()" />
-          </div>
-        </div>
-        <div id="metconList"></div>
-        <button class="add-exercise-btn" style="margin-top: 12px; padding: 14px;" onclick="openModal('picker', 'metcon')">Add Movement</button>
-      </div>
-    </div>
-
-    <!-- VITALS + NOTES -->
+    <!-- VITALS + NOTES (always shown, universal across all templates) -->
     <details class="collapse" style="margin-top: 24px">
       <summary>Vitals + Notes</summary>
       <div class="collapse-body">
@@ -1300,20 +1246,267 @@ function finishDateEdit() { document.getElementById('dateInfo').classList.remove
 // ============================================================
 // RENDERING
 // ============================================================
-function renderAll() {
+let currentTemplate = null;   // template resolved for currentDate
+const DEFAULT_SECTION_TITLES = { strength: 'Strength', cardio: 'Cardio', metcon: 'Metcon', notes: 'Notes', custom: 'Notes' };
+
+async function renderAll() {
   document.getElementById('categoryPill').textContent = currentWorkout.category.toUpperCase();
-  renderAMList();
-  renderMetconList();
-  document.getElementById('cardioType').value = currentWorkout.cardio?.type || 'Run';
-  document.getElementById('cardioDist').value = currentWorkout.cardio?.distance ?? 2;
-  document.getElementById('cardioTime').value = currentWorkout.cardio?.time ?? '';
-  document.getElementById('metconRounds').value = currentWorkout.metcon?.rounds ?? '';
-  document.getElementById('metconTime').value = currentWorkout.metcon?.time ?? '';
-  document.getElementById('metconRPE').value = currentWorkout.metcon?.rpe ?? '';
+  await renderDaySections();
   document.getElementById('bodyWeight').value = currentWorkout.bodyWeight ?? '';
   document.getElementById('sleep').value = currentWorkout.sleep ?? '';
   document.getElementById('energy').value = currentWorkout.energy ?? '';
   document.getElementById('dayNotes').value = currentWorkout.notes || '';
+}
+
+async function renderDaySections() {
+  // Resolve the template for currentDate
+  try {
+    const res = await fetch(`/api/resolve-day?date=${currentDate}`);
+    const data = await res.json();
+    currentTemplate = data.template;
+  } catch (e) {
+    console.warn('Template resolve failed', e);
+    currentTemplate = null;
+  }
+
+  const pill = document.getElementById('templatePill');
+  const pillTxt = document.getElementById('templatePillText');
+  if (currentTemplate && !currentTemplate.is_generic) {
+    pillTxt.textContent = `Layout: ${currentTemplate.name}`;
+    pill.style.display = 'block';
+  } else {
+    pill.style.display = 'none';
+  }
+
+  const container = document.getElementById('daySections');
+
+  // No custom template (generic default) → use classic 3-section HTML with existing IDs
+  // This preserves ALL existing behavior for users who haven't created a template.
+  if (!currentTemplate || currentTemplate.is_generic || !currentTemplate.sections?.length) {
+    container.innerHTML = classicSectionsHTML();
+    renderAMList();
+    renderMetconList();
+    document.getElementById('cardioType').value = currentWorkout.cardio?.type || 'Run';
+    document.getElementById('cardioDist').value = currentWorkout.cardio?.distance ?? 2;
+    document.getElementById('cardioTime').value = currentWorkout.cardio?.time ?? '';
+    document.getElementById('metconRounds').value = currentWorkout.metcon?.rounds ?? '';
+    document.getElementById('metconTime').value = currentWorkout.metcon?.time ?? '';
+    document.getElementById('metconRPE').value = currentWorkout.metcon?.rpe ?? '';
+    return;
+  }
+
+  // Custom template → render dynamic sections
+  if (!Array.isArray(currentWorkout.sections)) currentWorkout.sections = [];
+  container.innerHTML = currentTemplate.sections.map((sec, i) => {
+    const state = currentWorkout.sections[i]?.state || sectionDefaultState(sec.type);
+    if (!currentWorkout.sections[i]) currentWorkout.sections[i] = { type: sec.type, state };
+    else currentWorkout.sections[i].type = sec.type;
+    return renderSectionShell(i, sec, currentWorkout.sections[i].state);
+  }).join('');
+  // Hydrate lists (strength exercises + metcon movements) after HTML is in the DOM
+  currentTemplate.sections.forEach((sec, i) => {
+    if (sec.type === 'strength') renderStrengthList(i);
+    else if (sec.type === 'metcon') renderMetconMovementList(i);
+  });
+}
+
+function classicSectionsHTML() {
+  return `
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">Morning Strength</div>
+        <div class="section-sub">machines + DBs</div>
+      </div>
+      <div id="amList"></div>
+      <button class="add-exercise-btn" onclick="openModal('picker', 'am')">Add Exercise</button>
+    </div>
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">Afternoon Cardio</div>
+      </div>
+      <div class="pm-card">
+        <div class="pm-row three">
+          <div class="input-group"><label>Type</label>
+            <select id="cardioType" onchange="autoSave()">
+              <option>Run</option><option>Walk</option><option>Run/Walk</option>
+              <option>Bike</option><option>Row</option><option>—</option>
+            </select>
+          </div>
+          <div class="input-group"><label>Distance (mi)</label>
+            <input type="number" step="0.1" id="cardioDist" value="2" onchange="autoSave()" />
+          </div>
+          <div class="input-group"><label>Time (min)</label>
+            <input type="number" step="0.1" id="cardioTime" onchange="autoSave()" />
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">Afternoon Metcon</div>
+        <div class="section-sub">supplement work</div>
+      </div>
+      <div class="pm-card">
+        <div class="pm-row three" style="margin-bottom: 14px">
+          <div class="input-group"><label>Rounds</label>
+            <input type="number" id="metconRounds" onchange="autoSave()" />
+          </div>
+          <div class="input-group"><label>Time (min)</label>
+            <input type="number" step="0.5" id="metconTime" onchange="autoSave()" />
+          </div>
+          <div class="input-group"><label>RPE /10</label>
+            <input type="number" min="1" max="10" id="metconRPE" onchange="autoSave()" />
+          </div>
+        </div>
+        <div id="metconList"></div>
+        <button class="add-exercise-btn" style="margin-top: 12px; padding: 14px;" onclick="openModal('picker', 'metcon')">Add Movement</button>
+      </div>
+    </div>
+  `;
+}
+
+function sectionDefaultState(type) {
+  if (type === 'strength') return { exercises: [] };
+  if (type === 'cardio')   return { type: 'Run', distance: null, time: null };
+  if (type === 'metcon')   return { rounds: null, time: null, rpe: null, exercises: [] };
+  if (type === 'notes' || type === 'custom') return { text: '' };
+  return {};
+}
+
+function renderSectionShell(i, sec, state) {
+  const title = escapeHtml(sec.title || DEFAULT_SECTION_TITLES[sec.type] || sec.type);
+  const subtitle = sec.subtitle ? `<div class="section-sub">${escapeHtml(sec.subtitle)}</div>` : '';
+  const header = `<div class="section-header"><div class="section-title">${title}</div>${subtitle}</div>`;
+  const body = ({
+    strength: () => `<div id="sec-${i}-list"></div>
+                     <button class="add-exercise-btn" onclick="openModal('picker', ${i})">Add Exercise</button>`,
+    cardio:   () => `<div class="pm-card"><div class="pm-row three">
+      <div class="input-group"><label>Type</label>
+        <select id="sec-${i}-cardio-type" onchange="autoSave()">
+          <option>Run</option><option>Walk</option><option>Run/Walk</option>
+          <option>Bike</option><option>Row</option><option>Swim</option><option>Elliptical</option><option>—</option>
+        </select></div>
+      <div class="input-group"><label>Distance (mi)</label>
+        <input type="number" step="0.1" id="sec-${i}-cardio-dist" value="${state.distance ?? ''}" onchange="autoSave()" /></div>
+      <div class="input-group"><label>Time (min)</label>
+        <input type="number" step="0.1" id="sec-${i}-cardio-time" value="${state.time ?? ''}" onchange="autoSave()" /></div>
+    </div></div>`,
+    metcon:   () => `<div class="pm-card"><div class="pm-row three" style="margin-bottom: 14px">
+      <div class="input-group"><label>Rounds</label>
+        <input type="number" id="sec-${i}-metcon-rounds" value="${state.rounds ?? ''}" onchange="autoSave()" /></div>
+      <div class="input-group"><label>Time (min)</label>
+        <input type="number" step="0.5" id="sec-${i}-metcon-time" value="${state.time ?? ''}" onchange="autoSave()" /></div>
+      <div class="input-group"><label>RPE /10</label>
+        <input type="number" min="1" max="10" id="sec-${i}-metcon-rpe" value="${state.rpe ?? ''}" onchange="autoSave()" /></div>
+    </div>
+    <div id="sec-${i}-metcon-list"></div>
+    <button class="add-exercise-btn" style="margin-top: 12px; padding: 14px;" onclick="openModal('picker', ${i})">Add Movement</button></div>`,
+    notes:    () => `<textarea id="sec-${i}-notes" style="margin-top: 8px;" placeholder="How'd it go? Anything worth remembering?" onchange="autoSave()">${escapeHtml(state.text || '')}</textarea>`,
+    custom:   () => `<textarea id="sec-${i}-notes" style="margin-top: 8px;" placeholder="Log anything you want here..." onchange="autoSave()">${escapeHtml(state.text || '')}</textarea>`,
+  })[sec.type];
+  return `<div class="section">${header}${body ? body() : `<div style="color:var(--muted);font-size:13px;">Unknown section type "${sec.type}"</div>`}</div>`;
+}
+
+// Section-aware strength list render (used by custom templates)
+function renderStrengthList(sIdx) {
+  const c = document.getElementById(`sec-${sIdx}-list`);
+  if (!c) return;
+  const st = currentWorkout.sections[sIdx].state;
+  if (!st.exercises?.length) { c.innerHTML = ''; return; }
+  c.innerHTML = st.exercises.map((ex, exIdx) => {
+    const last = findLastHint(ex.name);
+    return `<div class="exercise-card">
+      <div class="exercise-head">
+        <div class="exercise-name">${escapeHtml(ex.name)}</div>
+        <div class="exercise-head-actions">
+          <button class="star-toggle ${userPrefs.favorites.has(ex.name) ? 'on' : ''}"
+                  onclick="toggleFavoriteFromCard(${JSON.stringify(ex.name).replace(/'/g,"\\'")})"
+                  title="${userPrefs.favorites.has(ex.name) ? 'Unstar' : 'Star this exercise'}">★</button>
+          <button class="exercise-menu" onclick="removeExerciseFromSection(${sIdx}, ${exIdx})" title="Remove">remove</button>
+        </div>
+      </div>
+      ${last ? `<div class="last-hint">Last time: <b>${last}</b></div>` : ''}
+      <div class="sets-list">
+        <div class="sets-header"><div>SET</div><div>REPS</div><div>WEIGHT</div><div></div></div>
+        ${ex.sets.map((s, seIdx) => `<div class="set-row">
+          <div class="set-num">${seIdx + 1}</div>
+          <input type="number" inputmode="numeric" value="${s.reps ?? ''}" placeholder="reps"
+                 onchange="updateSectionSet(${sIdx}, ${exIdx}, ${seIdx}, 'reps', this.value)" />
+          <input type="number" inputmode="decimal" step="2.5" value="${s.weight ?? ''}" placeholder="lbs"
+                 onchange="updateSectionSet(${sIdx}, ${exIdx}, ${seIdx}, 'weight', this.value)" />
+          <button class="set-del" onclick="removeSectionSet(${sIdx}, ${exIdx}, ${seIdx})">✕</button>
+        </div>`).join('')}
+        <button class="add-set-btn" onclick="addSectionSet(${sIdx}, ${exIdx})">+ Add Set</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderMetconMovementList(sIdx) {
+  const c = document.getElementById(`sec-${sIdx}-metcon-list`);
+  if (!c) return;
+  const st = currentWorkout.sections[sIdx].state;
+  if (!st.exercises?.length) {
+    c.innerHTML = `<div style="color: var(--muted); font-size: 13px; padding: 10px 0; text-align: center;">No movements yet.</div>`;
+    return;
+  }
+  c.innerHTML = st.exercises.map((m, idx) => `<div class="metcon-row">
+    <input type="text" value="${escapeHtml(m.name)}" readonly />
+    <input type="number" inputmode="numeric" value="${m.reps ?? ''}" placeholder="reps"
+           onchange="updateSectionMetconReps(${sIdx}, ${idx}, this.value)" />
+    <button class="set-del" onclick="removeSectionMetcon(${sIdx}, ${idx})">✕</button>
+  </div>`).join('');
+}
+
+// Section-aware mutation helpers (used by custom templates)
+function addExerciseToSection(sIdx, name) {
+  const sec = currentWorkout.sections[sIdx];
+  if (!sec) return;
+  if (sec.type === 'strength') {
+    const last = findLastSession(name);
+    const fs = last ? { reps: last.sets[0].reps, weight: last.sets[0].weight } : { reps: null, weight: null };
+    if (!sec.state.exercises) sec.state.exercises = [];
+    sec.state.exercises.push({ name, sets: [{...fs},{...fs},{...fs}] });
+    renderStrengthList(sIdx);
+  } else if (sec.type === 'metcon') {
+    if (!sec.state.exercises) sec.state.exercises = [];
+    sec.state.exercises.push({ name, reps: null });
+    renderMetconMovementList(sIdx);
+  }
+  autoSave();
+}
+function updateSectionSet(sIdx, ei, si, f, v) {
+  currentWorkout.sections[sIdx].state.exercises[ei].sets[si][f] = v === '' ? null : parseFloat(v);
+  autoSave();
+}
+function addSectionSet(sIdx, ei) {
+  const ex = currentWorkout.sections[sIdx].state.exercises[ei];
+  const l = ex.sets[ex.sets.length - 1] || { reps: null, weight: null };
+  ex.sets.push({ reps: l.reps, weight: l.weight });
+  renderStrengthList(sIdx);
+  autoSave();
+}
+function removeSectionSet(sIdx, ei, si) {
+  const st = currentWorkout.sections[sIdx].state;
+  st.exercises[ei].sets.splice(si, 1);
+  if (!st.exercises[ei].sets.length) st.exercises.splice(ei, 1);
+  renderStrengthList(sIdx);
+  autoSave();
+}
+function removeExerciseFromSection(sIdx, ei) {
+  if (!confirm('Remove this exercise?')) return;
+  currentWorkout.sections[sIdx].state.exercises.splice(ei, 1);
+  renderStrengthList(sIdx);
+  autoSave();
+}
+function updateSectionMetconReps(sIdx, i, v) {
+  currentWorkout.sections[sIdx].state.exercises[i].reps = v === '' ? null : parseInt(v);
+  autoSave();
+}
+function removeSectionMetcon(sIdx, i) {
+  currentWorkout.sections[sIdx].state.exercises.splice(i, 1);
+  renderMetconMovementList(sIdx);
+  autoSave();
 }
 
 function renderAMList() {
@@ -1454,18 +1647,43 @@ function findLastHint(name) {
 // ============================================================
 let saveTimeout = null;
 function autoSave() {
-  currentWorkout.cardio = {
-    type: document.getElementById('cardioType').value,
-    distance: parseFloat(document.getElementById('cardioDist').value) || null,
-    time: parseFloat(document.getElementById('cardioTime').value) || null
-  };
-  currentWorkout.metcon.rounds = parseInt(document.getElementById('metconRounds').value) || null;
-  currentWorkout.metcon.time = parseFloat(document.getElementById('metconTime').value) || null;
-  currentWorkout.metcon.rpe = parseInt(document.getElementById('metconRPE').value) || null;
+  // Vitals are universal across all templates
   currentWorkout.bodyWeight = parseFloat(document.getElementById('bodyWeight').value) || null;
   currentWorkout.sleep = parseFloat(document.getElementById('sleep').value) || null;
   currentWorkout.energy = parseInt(document.getElementById('energy').value) || null;
   currentWorkout.notes = document.getElementById('dayNotes').value.trim();
+
+  const usingCustomTemplate = currentTemplate && !currentTemplate.is_generic && Array.isArray(currentTemplate.sections);
+
+  if (usingCustomTemplate) {
+    // Serialize section state from DOM (mutation helpers already keep exercises/movements in memory)
+    currentTemplate.sections.forEach((sec, i) => {
+      if (!currentWorkout.sections[i]) currentWorkout.sections[i] = { type: sec.type, state: sectionDefaultState(sec.type) };
+      const st = currentWorkout.sections[i].state;
+      if (sec.type === 'cardio') {
+        st.type = document.getElementById(`sec-${i}-cardio-type`)?.value;
+        st.distance = parseFloat(document.getElementById(`sec-${i}-cardio-dist`)?.value) || null;
+        st.time = parseFloat(document.getElementById(`sec-${i}-cardio-time`)?.value) || null;
+      } else if (sec.type === 'metcon') {
+        st.rounds = parseInt(document.getElementById(`sec-${i}-metcon-rounds`)?.value) || null;
+        st.time = parseFloat(document.getElementById(`sec-${i}-metcon-time`)?.value) || null;
+        st.rpe = parseInt(document.getElementById(`sec-${i}-metcon-rpe`)?.value) || null;
+      } else if (sec.type === 'notes' || sec.type === 'custom') {
+        st.text = document.getElementById(`sec-${i}-notes`)?.value || '';
+      }
+    });
+  } else {
+    // Classic layout: read from the hardcoded IDs
+    currentWorkout.cardio = {
+      type: document.getElementById('cardioType').value,
+      distance: parseFloat(document.getElementById('cardioDist').value) || null,
+      time: parseFloat(document.getElementById('cardioTime').value) || null
+    };
+    currentWorkout.metcon.rounds = parseInt(document.getElementById('metconRounds').value) || null;
+    currentWorkout.metcon.time = parseFloat(document.getElementById('metconTime').value) || null;
+    currentWorkout.metcon.rpe = parseInt(document.getElementById('metconRPE').value) || null;
+  }
+
   currentWorkout.savedAt = new Date().toISOString();
   if (!isEmpty(currentWorkout)) {
     const idx = state.workouts.findIndex(w => w.date === currentDate);
@@ -1478,12 +1696,18 @@ function autoSave() {
 }
 function isEmpty(w) {
   if (!w) return true;
-  // If user manually picked a category different from the day's default, treat as touched
   const d = new Date(w.date + 'T12:00:00');
   const autoCat = DAY_TO_CATEGORY[d.getDay()];
   if (w.category && w.category !== autoCat) return false;
-  return !w.am?.exercises?.length && !w.metcon?.exercises?.length
+  // Classic path
+  const classicEmpty = !w.am?.exercises?.length && !w.metcon?.exercises?.length
     && !w.cardio?.time && !w.notes && !w.bodyWeight;
+  // Custom sections path
+  const sectionsEmpty = !w.sections?.some(s => {
+    const st = s?.state || {};
+    return st.exercises?.length || st.time || st.rounds || (st.text && st.text.trim());
+  });
+  return classicEmpty && sectionsEmpty;
 }
 function showSavePill() {
   const p = document.getElementById('savePill');
@@ -1631,7 +1855,14 @@ function openModal(type, ...args) {
   const body = document.getElementById('modalBody');
   if (type === 'picker') {
     const sec = args[0];
-    title.textContent = sec === 'am' ? 'Add Exercise' : 'Add Movement';
+    // sec is 'am' | 'metcon' (classic) OR a numeric section index (custom template)
+    let isMovement = false;
+    if (typeof sec === 'number' && currentTemplate?.sections?.[sec]) {
+      isMovement = currentTemplate.sections[sec].type === 'metcon';
+    } else {
+      isMovement = sec === 'metcon';
+    }
+    title.textContent = isMovement ? 'Add Movement' : 'Add Exercise';
     search.innerHTML = `<input class="modal-search" id="modalSearchInput" type="text" placeholder="Search..." oninput="filterPicker()" />`;
     chips.innerHTML = renderPickerChips();
     body.innerHTML = renderPickerList();
@@ -1655,8 +1886,9 @@ function openModal(type, ...args) {
       ${adminLink}
       <div class="menu-item" onclick="openModal('claudePrompt')">Claude Prompt <span class="meta">log via AI</span></div>
       <div class="menu-item" onclick="openModal('split')">Weekly Split <span class="meta">view</span></div>
+      <div class="menu-item" onclick="location.href='/templates.html'">Day Layouts <span class="meta">customize sections</span></div>
       <div class="menu-item" onclick="location.href='/pool.html'">Exercise Pool <span class="meta">browse + star</span></div>
-      <div class="menu-item" onclick="location.href='/routines.html'">Routines <span class="meta">templates + schedule</span></div>
+      <div class="menu-item" onclick="location.href='/routines.html'">Routines <span class="meta">saved exercise sets</span></div>
       <div class="menu-item" onclick="exportJSON()">Export Data <span class="meta">save backup</span></div>
       <div class="menu-item" onclick="document.getElementById('importInput').click()">Import Data <span class="meta">restore backup</span></div>
       <input type="file" id="importInput" accept=".json" style="display:none" onchange="importJSON(event)" />
@@ -1765,7 +1997,7 @@ function renderPickerList() {
     html += f.map(n => {
       const isFav = userPrefs.favorites.has(n);
       return `
-        <div class="exercise-pick" onclick="addExercise(${JSON.stringify(n).replace(/'/g, "\\'")}, '${sec}'); closeModal();">
+        <div class="exercise-pick" onclick="pickerAddExercise(${JSON.stringify(n).replace(/'/g, "\\'")}); closeModal();">
           <div class="name">${isFav ? '<span style="color:var(--gold,#F2B340);margin-right:6px;">★</span>' : ''}${escapeHtml(n)}</div>
           <div class="add-icon">+</div>
         </div>`;
@@ -1775,6 +2007,12 @@ function renderPickerList() {
   return html;
 }
 function filterPicker() { document.getElementById('modalBody').innerHTML = renderPickerList(); }
+// Dispatcher: route picker-selected exercise to classic or section-scoped add
+function pickerAddExercise(name) {
+  const sec = modalContext?.args?.[0];
+  if (typeof sec === 'number') addExerciseToSection(sec, name);
+  else addExercise(name, sec);
+}
 function pickCategory(c) { setCategory(c); closeModal(); }
 function renderPool() {
   return Object.entries(POOL).map(([cat, data]) => {
