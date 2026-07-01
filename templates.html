@@ -200,8 +200,11 @@
         <label>Name</label>
         <input type="text" id="tplName" placeholder="Push Day, Rest Day, Cardio Only..." />
 
-        <label>Focus / category <span style="color: var(--muted); font-weight: 400; text-transform: none; letter-spacing: 0; font-size: 11px;">(optional — shown as a chip on days using this template)</span></label>
-        <input type="text" id="tplCategory" placeholder="Push, Pull, Legs, Rest, Cardio..." />
+        <label>Focus options <span style="color: var(--muted); font-weight: 400; text-transform: none; letter-spacing: 0; font-size: 11px;">(comma-separated; shown as switchable chips on days using this template)</span></label>
+        <input type="text" id="tplCategory" placeholder="Push, Pull, Legs   —or—   Chest/Tri, Back/Bi, Shoulders, Legs" />
+        <div style="margin-top: 6px; font-size: 11px; color: var(--muted); line-height: 1.4;">
+          One focus (e.g. "Rest") shows as a plain chip. Multiple focuses ("Push, Pull, Legs") show as tappable chips so you can pick which one on any given day.
+        </div>
 
         <div style="margin-top: 14px; display: flex; align-items: center; gap: 8px;">
           <input type="checkbox" id="tplIsDefault" style="width:auto; margin: 0;" />
@@ -340,7 +343,9 @@ function renderTemplates() {
         <div>
           <div class="name-row">
             <span class="name">${escapeHtml(t.name)}</span>
-            ${t.category ? `<span class="badge" style="background: rgba(224,122,95,0.15); color: var(--accent);">${escapeHtml(t.category)}</span>` : ''}
+            ${t.category ? t.category.split(',').map(s => s.trim()).filter(Boolean).map(c =>
+              `<span class="badge" style="background: rgba(224,122,95,0.15); color: var(--accent);">${escapeHtml(c)}</span>`
+            ).join('') : ''}
             ${t.is_default ? '<span class="badge">Default</span>' : ''}
           </div>
           <div class="sections-summary">${(t.sections || []).map(s => `<strong>${escapeHtml(s.title || DEFAULT_TITLES[s.type] || s.type)}</strong> <span style="color:var(--muted)">(${s.type})</span>`).join(' · ') || '<em>No sections</em>'}</div>

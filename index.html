@@ -245,6 +245,25 @@
     box-shadow: 0 2px 6px rgba(255, 122, 85, 0.25);
   }
   .category-pill:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(255, 122, 85, 0.35); }
+  /* Focus chips (multi-focus templates) — sit in the day header where the single
+     category pill used to. Row of small tappable pills; active one is filled. */
+  #categoryPill { background: transparent; box-shadow: none; padding: 0; display: flex; gap: 6px; flex-wrap: wrap; }
+  #categoryPill:hover { transform: none; box-shadow: none; }
+  .cat-chip {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-2);
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .cat-chip:hover { color: var(--accent); border-color: var(--accent); }
+  .cat-chip.active { background: var(--accent); color: white; border-color: var(--accent); box-shadow: 0 2px 6px rgba(255, 122, 85, 0.25); }
 
   /* ============ SECTIONS ============ */
   .section {
@@ -1535,16 +1554,30 @@ async function renderDaySections() {
     pill.style.display = 'none';
   }
 
-  // Category chip in the day header comes from the resolved template's category field.
-  // No runtime toggle, no per-user list — set it in the template editor.
+  // Category chip(s) come from the resolved template's category field.
+  // Template can store a single value ("Rest") or a comma-separated list ("Push, Pull, Legs").
+  // A list renders as tappable chips — user picks which focus applies to this day.
   const catPill = document.getElementById('categoryPill');
-  const cat = currentTemplate?.category?.trim();
-  if (cat) {
-    catPill.textContent = cat.toUpperCase();
-    catPill.style.display = '';
-    currentWorkout.category = cat;   // keep the workout row in sync so historical views group correctly
-  } else {
+  const rawCat = currentTemplate?.category?.trim() || '';
+  const options = rawCat.split(',').map(s => s.trim()).filter(Boolean);
+  if (options.length === 0) {
     catPill.style.display = 'none';
+  } else if (options.length === 1) {
+    // Single focus — just a plain chip, no picker
+    catPill.innerHTML = `<span class="cat-chip active" style="pointer-events:none">${escapeHtml(options[0].toUpperCase())}</span>`;
+    catPill.style.display = '';
+    currentWorkout.category = options[0];
+  } else {
+    // Multiple focuses — switchable chip row. Selected = workout's category, or first option.
+    let selected = currentWorkout.category;
+    if (!options.includes(selected)) {
+      selected = options[0];
+      currentWorkout.category = selected;
+    }
+    catPill.innerHTML = options.map(opt =>
+      `<button class="cat-chip ${opt === selected ? 'active' : ''}" onclick="setCategoryFromChip(${JSON.stringify(opt).replace(/"/g,'&quot;')})">${escapeHtml(opt.toUpperCase())}</button>`
+    ).join('');
+    catPill.style.display = '';
   }
 
   const container = document.getElementById('daySections');
@@ -2391,6 +2424,14 @@ function pickerAddExercise(name) {
   else addExercise(name, sec);
 }
 function pickCategory(c) { setCategory(c); closeModal(); }
+
+// Called when user taps one of the focus chips in the day header (multi-focus template).
+function setCategoryFromChip(cat) {
+  currentWorkout.category = cat;
+  // Re-render just the chip row (cheap) to move the .active class
+  renderDaySections();
+  autoSave();
+}
 function renderPool() {
   // Read-only "weekly split" view: show every muscle group with its full exercise list.
   return MUSCLE_ORDER.map(muscle => {
