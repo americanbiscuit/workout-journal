@@ -2351,6 +2351,35 @@ Do NOT print the raw JSON. Do NOT explain fields. Do NOT include the object outs
 }
 \`\`\`
 
+# WHAT HAPPENS ON IMPORT (so you know what your JSON drives)
+
+When I tap the link, the browser opens \`/import.html\` and reads the JSON out of the URL fragment. It then does two things in order:
+
+1. For each entry in \`new_exercises\` (if any), POST to \`/api/custom-exercises\` — adds it to my personal pool so it appears in the picker next time. Duplicates (same name) return 409 and are silently ignored — safe to include a name I already have.
+2. PUT the rest of the JSON to \`/api/workouts/{date}\` — creates or overwrites the workout for that date.
+
+Both calls use my logged-in session cookie automatically. You don't need an API key or auth token — you're only building the URL, the browser executes.
+
+# SECTIONS-BASED ALTERNATIVE (advanced, optional)
+
+If I've configured a custom Day Layout on this app (Menu → Day Layouts), my day is composed of an ordered list of sections and the workout data lives at \`data.sections[i].state\`. You almost never need to produce this shape — the legacy \`am\`/\`cardio\`/\`metcon\` shape above always works and the app auto-maps it. But if I explicitly say "use my day-layout shape" or "produce a sections payload", the schema is:
+
+\`\`\`
+{
+  "date": "YYYY-MM-DD",
+  "category": "string",
+  "sections": [
+    { "type": "strength", "state": { "exercises": [{ "name": "...", "sets": [{ "reps": ..., "weight": ... }] }] } },
+    { "type": "cardio",   "state": { "type": "Run", "distance": 2, "time": 22 } },
+    { "type": "metcon",   "state": { "rounds": 3, "time": 12, "rpe": 8, "exercises": [{ "name": "...", "reps": ... }] } },
+    { "type": "notes",    "state": { "text": "..." } },
+    { "type": "custom",   "state": { "text": "..." } }
+  ]
+}
+\`\`\`
+
+Section order matches whatever my Day Layout for that date defines. Only include this if I ask for it by name.
+
 # EXTENDING THE POOL
 
 Any exercise I mention that looks unusual or specific to my gym (e.g. a machine brand name, a novel movement, a personal cue like "biceps blaster" or "the weird cable thing") should be added to my personal exercise pool so it's suggested next time. Include it in the \`new_exercises\` array with the best-guess muscle group. On import, the app POSTs each new entry to my custom-exercises pool before saving the workout.
