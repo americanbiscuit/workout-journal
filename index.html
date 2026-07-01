@@ -1189,7 +1189,40 @@ const MUSCLE_ORDER = ['chest', 'back', 'biceps', 'triceps', 'shoulders', 'quads'
 const DAY_TO_CATEGORY = { 0: "Abs", 1: "Chest/Tri", 2: "Back/Bi", 3: "Shoulders", 4: "Abs", 5: "Legs", 6: "Abs" };
 const FULL_DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const SHORT_DAY_NAMES = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
-const CATEGORY_LIST = ["Chest/Tri","Back/Bi","Shoulders","Abs","Legs"];
+const DEFAULT_CATEGORIES = ["Chest/Tri","Back/Bi","Shoulders","Abs","Legs"];
+const USER_CATEGORIES_KEY = 'workout-journal-user-categories';
+// Merged category list: user's custom categories + the defaults + any category
+// that shows up on an existing workout (so historical labels stay pickable).
+function getCategoryList() {
+  let user = [];
+  try { user = JSON.parse(localStorage.getItem(USER_CATEGORIES_KEY) || '[]'); } catch {}
+  const fromWorkouts = (state.workouts || []).map(w => w.category).filter(Boolean);
+  return [...new Set([...user, ...DEFAULT_CATEGORIES, ...fromWorkouts])];
+}
+function addUserCategory(name) {
+  const trimmed = (name || '').trim();
+  if (!trimmed) return false;
+  let user = [];
+  try { user = JSON.parse(localStorage.getItem(USER_CATEGORIES_KEY) || '[]'); } catch {}
+  if (getCategoryList().some(c => c.toLowerCase() === trimmed.toLowerCase())) return false;  // duplicate
+  user.push(trimmed);
+  localStorage.setItem(USER_CATEGORIES_KEY, JSON.stringify(user));
+  return true;
+}
+function removeUserCategory(name) {
+  let user = [];
+  try { user = JSON.parse(localStorage.getItem(USER_CATEGORIES_KEY) || '[]'); } catch {}
+  user = user.filter(c => c !== name);
+  localStorage.setItem(USER_CATEGORIES_KEY, JSON.stringify(user));
+}
+// Legacy shim — some old code may still reference CATEGORY_LIST. Points to the
+// current merged list (evaluated on read, so newly-added categories appear).
+const CATEGORY_LIST = new Proxy([], {
+  get(_, prop) {
+    const arr = getCategoryList();
+    return typeof arr[prop] === 'function' ? arr[prop].bind(arr) : arr[prop];
+  }
+});
 
 // ============================================================
 // AUTH + STATE — D1-backed with session cookie
@@ -2118,12 +2151,7 @@ function openModal(type, ...args) {
   } else if (type === 'category') {
     title.textContent = 'Day Focus';
     search.innerHTML = ''; chips.innerHTML = '';
-    body.innerHTML = CATEGORY_LIST.map(c => `
-      <div class="menu-item" onclick="pickCategory('${c}')">
-        ${c}
-        ${c === currentWorkout.category ? '<span class="meta">selected</span>' : ''}
-      </div>
-    `).join('');
+    renderCategoryPicker();
   } else if (type === 'settings') {
     title.textContent = 'Menu';
     search.innerHTML = ''; chips.innerHTML = '';
@@ -2295,6 +2323,55 @@ function pickerAddExercise(name) {
   else addExercise(name, sec);
 }
 function pickCategory(c) { setCategory(c); closeModal(); }
+
+// Category picker renderer — supports custom categories (add / delete) alongside defaults.
+function renderCategoryPicker() {
+  const body = document.getElementById('modalBody');
+  const cats = getCategoryList();
+  let user = [];
+  try { user = JSON.parse(localStorage.getItem(USER_CATEGORIES_KEY) || '[]'); } catch {}
+  const isUserCat = (c) => user.includes(c);
+  body.innerHTML = `
+    ${cats.map(c => `
+      <div class="menu-item" style="display:flex; align-items:center; justify-content:space-between;">
+        <div onclick="pickCategory(${JSON.stringify(c).replace(/"/g, '&quot;')})" style="flex:1; cursor:pointer;">
+          ${escapeHtml(c)}
+          ${c === currentWorkout.category ? '<span class="meta">selected</span>' : ''}
+        </div>
+        ${isUserCat(c) ? `<button onclick="event.stopPropagation(); removeUserCategoryUI(${JSON.stringify(c).replace(/"/g, '&quot;')})" style="background:transparent;border:none;color:var(--danger,#d05353);cursor:pointer;font-size:16px;padding:4px 8px;">×</button>` : ''}
+      </div>
+    `).join('')}
+    <div style="padding: 12px 16px; border-top: 1px solid var(--border-soft); margin-top: 4px;">
+      <div style="font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; font-weight: 800; margin-bottom: 8px;">Add a category</div>
+      <div style="display: flex; gap: 6px;">
+        <input type="text" id="newCategoryInput" placeholder="e.g. Push, Pull, Full Body..." style="flex:1; background: var(--surface); border: 1px solid var(--border-soft); padding: 8px 12px; border-radius: 8px; font-size: 14px; font-family: inherit;" onkeypress="if(event.key==='Enter') addCategoryUI()" />
+        <button onclick="addCategoryUI()" style="background: var(--accent); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; font-family: inherit;">Add</button>
+      </div>
+      <div id="newCategoryErr" style="color: var(--danger,#d05353); font-size: 11px; margin-top: 6px; display: none;"></div>
+    </div>
+  `;
+  setTimeout(() => document.getElementById('newCategoryInput')?.focus(), 100);
+}
+function addCategoryUI() {
+  const input = document.getElementById('newCategoryInput');
+  const err = document.getElementById('newCategoryErr');
+  const name = input.value.trim();
+  if (!name) return;
+  const added = addUserCategory(name);
+  if (!added) {
+    err.textContent = 'That category already exists.';
+    err.style.display = 'block';
+    return;
+  }
+  input.value = '';
+  err.style.display = 'none';
+  renderCategoryPicker();
+}
+function removeUserCategoryUI(name) {
+  if (!confirm(`Remove "${name}" from your categories?`)) return;
+  removeUserCategory(name);
+  renderCategoryPicker();
+}
 function renderPool() {
   // Read-only "weekly split" view: show every muscle group with its full exercise list.
   return MUSCLE_ORDER.map(muscle => {
