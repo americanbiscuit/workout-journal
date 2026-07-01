@@ -270,6 +270,63 @@
   }
 
   /* ============ EXERCISE CARDS ============ */
+  /* Rest-between-sets field + Superset grouping */
+  .rest-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    padding: 8px 10px;
+    background: var(--surface-alt);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    color: var(--text-2);
+  }
+  .rest-row label { text-transform: uppercase; letter-spacing: 1px; font-weight: 700; font-size: 10px; margin: 0; color: var(--muted); }
+  .rest-row input {
+    width: 64px;
+    background: transparent;
+    border: 1px solid var(--border-soft);
+    padding: 4px 8px;
+    border-radius: 6px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .rest-row .rest-unit { color: var(--muted); font-size: 11px; margin-left: -4px; }
+  .rest-row .group-btn {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid var(--border-soft);
+    color: var(--text-2);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 5px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    letter-spacing: 0.3px;
+  }
+  .rest-row .group-btn.on { background: var(--accent); color: white; border-color: var(--accent); }
+  .rest-row .group-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .rest-row .group-btn.on:hover { background: var(--accent); color: white; }
+  /* Superset visual: cards in a group get a shared accent left border + no gap between */
+  .exercise-card.grouped { border-left: 3px solid var(--accent); }
+  .exercise-card.grouped-not-first { margin-top: -12px; border-top-left-radius: 0; border-top-right-radius: 0; }
+  .exercise-card.grouped-not-last { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+  .superset-chip {
+    display: inline-block;
+    background: var(--accent);
+    color: white;
+    font-size: 9px;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 999px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
   .exercise-card {
     background: var(--surface);
     border: 1px solid var(--border-soft);
@@ -1630,33 +1687,108 @@ function renderStrengthList(sIdx) {
   if (!c) return;
   const st = currentWorkout.sections[sIdx].state;
   if (!st.exercises?.length) { c.innerHTML = ''; return; }
-  c.innerHTML = st.exercises.map((ex, exIdx) => {
-    const last = findLastHint(ex.name);
-    return `<div class="exercise-card">
-      <div class="exercise-head">
-        <div class="exercise-name">${escapeHtml(ex.name)}</div>
-        <div class="exercise-head-actions">
-          <button class="star-toggle ${userPrefs.favorites.has(ex.name) ? 'on' : ''}"
-                  onclick="toggleFavoriteFromCard(${JSON.stringify(ex.name).replace(/'/g,"\\'")})"
-                  title="${userPrefs.favorites.has(ex.name) ? 'Unstar' : 'Star this exercise'}">★</button>
-          <button class="exercise-menu" onclick="removeExerciseFromSection(${sIdx}, ${exIdx})" title="Remove">remove</button>
-        </div>
+  c.innerHTML = st.exercises.map((ex, exIdx) => renderExerciseCard(ex, exIdx, st.exercises, {
+    onRest: `updateSectionRest(${sIdx}, ${exIdx}, this.value)`,
+    onGroup: `toggleSectionGroup(${sIdx}, ${exIdx})`,
+    onRemove: `removeExerciseFromSection(${sIdx}, ${exIdx})`,
+    onSetChange: (seIdx, f) => `updateSectionSet(${sIdx}, ${exIdx}, ${seIdx}, '${f}', this.value)`,
+    onSetDel: (seIdx) => `removeSectionSet(${sIdx}, ${exIdx}, ${seIdx})`,
+    onAddSet: `addSectionSet(${sIdx}, ${exIdx})`,
+  })).join('');
+}
+
+// Shared exercise-card renderer used by both classic and dynamic strength lists.
+// `handlers` bundles the onclick strings unique to each caller so the card visuals + set-row + rest row stay identical.
+function renderExerciseCard(ex, exIdx, allExercises, handlers) {
+  const last = findLastHint(ex.name);
+  const prev = allExercises[exIdx - 1];
+  const next = allExercises[exIdx + 1];
+  const groupedWithPrev = ex.group_id && prev && prev.group_id === ex.group_id;
+  const groupedWithNext = ex.group_id && next && next.group_id === ex.group_id;
+  const isGrouped = groupedWithPrev || groupedWithNext;
+  const cardClasses = [
+    'exercise-card',
+    isGrouped ? 'grouped' : '',
+    groupedWithPrev ? 'grouped-not-first' : '',
+    groupedWithNext ? 'grouped-not-last' : '',
+  ].filter(Boolean).join(' ');
+  const groupChip = isGrouped && !groupedWithPrev ? `<div class="superset-chip">≡ Superset</div>` : '';
+  return `<div class="${cardClasses}">
+    ${groupChip}
+    <div class="exercise-head">
+      <div class="exercise-name">${escapeHtml(ex.name)}</div>
+      <div class="exercise-head-actions">
+        <button class="star-toggle ${userPrefs.favorites.has(ex.name) ? 'on' : ''}"
+                onclick="toggleFavoriteFromCard(${JSON.stringify(ex.name).replace(/'/g,"\\'")})"
+                title="${userPrefs.favorites.has(ex.name) ? 'Unstar' : 'Star this exercise'}">★</button>
+        <button class="exercise-menu" onclick="${handlers.onRemove}" title="Remove">remove</button>
       </div>
-      ${last ? `<div class="last-hint">Last time: <b>${last}</b></div>` : ''}
-      <div class="sets-list">
-        <div class="sets-header"><div>SET</div><div>REPS</div><div>WEIGHT</div><div></div></div>
-        ${ex.sets.map((s, seIdx) => `<div class="set-row">
-          <div class="set-num">${seIdx + 1}</div>
-          <input type="number" inputmode="numeric" value="${s.reps ?? ''}" placeholder="reps"
-                 onchange="updateSectionSet(${sIdx}, ${exIdx}, ${seIdx}, 'reps', this.value)" />
-          <input type="number" inputmode="decimal" step="2.5" value="${s.weight ?? ''}" placeholder="lbs"
-                 onchange="updateSectionSet(${sIdx}, ${exIdx}, ${seIdx}, 'weight', this.value)" />
-          <button class="set-del" onclick="removeSectionSet(${sIdx}, ${exIdx}, ${seIdx})">✕</button>
-        </div>`).join('')}
-        <button class="add-set-btn" onclick="addSectionSet(${sIdx}, ${exIdx})">+ Add Set</button>
-      </div>
-    </div>`;
-  }).join('');
+    </div>
+    ${last ? `<div class="last-hint">Last time: <b>${last}</b></div>` : ''}
+    <div class="sets-list">
+      <div class="sets-header"><div>SET</div><div>REPS</div><div>WEIGHT</div><div></div></div>
+      ${ex.sets.map((s, seIdx) => `<div class="set-row">
+        <div class="set-num">${seIdx + 1}</div>
+        <input type="number" inputmode="numeric" value="${s.reps ?? ''}" placeholder="reps"
+               onchange="${handlers.onSetChange(seIdx, 'reps')}" />
+        <input type="number" inputmode="decimal" step="2.5" value="${s.weight ?? ''}" placeholder="lbs"
+               onchange="${handlers.onSetChange(seIdx, 'weight')}" />
+        <button class="set-del" onclick="${handlers.onSetDel(seIdx)}">✕</button>
+      </div>`).join('')}
+      <button class="add-set-btn" onclick="${handlers.onAddSet}">+ Add Set</button>
+    </div>
+    <div class="rest-row">
+      <label for="ex-${exIdx}-rest">Rest</label>
+      <input type="number" inputmode="numeric" min="0" step="15"
+             value="${ex.rest_seconds ?? ''}" placeholder="—"
+             oninput="${handlers.onRest}" />
+      <span class="rest-unit">sec</span>
+      ${exIdx > 0 ? `<button class="group-btn ${groupedWithPrev ? 'on' : ''}" onclick="${handlers.onGroup}">${groupedWithPrev ? '✓ Superset' : '☍ Group with above'}</button>` : ''}
+    </div>
+  </div>`;
+}
+
+// Mutation helpers for the SECTION (dynamic template) path
+function updateSectionRest(sIdx, exIdx, val) {
+  const v = val === '' ? null : parseInt(val);
+  currentWorkout.sections[sIdx].state.exercises[exIdx].rest_seconds = (isNaN(v) || v < 0) ? null : v;
+  autoSaveDebounced();
+}
+function toggleSectionGroup(sIdx, exIdx) {
+  const arr = currentWorkout.sections[sIdx].state.exercises;
+  toggleGroupOnArray(arr, exIdx);
+  renderStrengthList(sIdx);
+  autoSave();
+}
+// Mutation helpers for the CLASSIC path
+function updateAmRest(exIdx, val) {
+  const v = val === '' ? null : parseInt(val);
+  currentWorkout.am.exercises[exIdx].rest_seconds = (isNaN(v) || v < 0) ? null : v;
+  autoSaveDebounced();
+}
+function toggleAmGroup(exIdx) {
+  toggleGroupOnArray(currentWorkout.am.exercises, exIdx);
+  renderAMList();
+  autoSave();
+}
+// Shared toggle logic — if the exercise at exIdx is grouped with the one above,
+// ungroup it (and clean up the previous if it becomes an orphan). Otherwise, join
+// the previous exercise's group (creating one if needed).
+function toggleGroupOnArray(arr, exIdx) {
+  if (exIdx === 0) return;
+  const prev = arr[exIdx - 1];
+  const cur = arr[exIdx];
+  if (cur.group_id && cur.group_id === prev.group_id) {
+    // Currently grouped → ungroup. Also clean up prev if it's now alone.
+    const oldGroup = cur.group_id;
+    cur.group_id = null;
+    const stillUsed = arr.some((e, i) => i !== exIdx && e.group_id === oldGroup);
+    if (!stillUsed) prev.group_id = null;
+  } else {
+    // Not grouped → adopt prev's group_id (or create a new one if prev has none)
+    if (!prev.group_id) prev.group_id = 'g_' + Math.random().toString(36).slice(2, 10);
+    cur.group_id = prev.group_id;
+  }
 }
 
 // Grows a textarea's height to fit its content (called on every keystroke)
@@ -1735,37 +1867,14 @@ function removeSectionMetcon(sIdx, i) {
 function renderAMList() {
   const c = document.getElementById('amList');
   if (!currentWorkout.am.exercises.length) { c.innerHTML = ''; return; }
-  c.innerHTML = currentWorkout.am.exercises.map((ex, exIdx) => {
-    const last = findLastHint(ex.name);
-    return `
-      <div class="exercise-card">
-        <div class="exercise-head">
-          <div class="exercise-name">${escapeHtml(ex.name)}</div>
-          <div class="exercise-head-actions">
-            <button class="star-toggle ${userPrefs.favorites.has(ex.name) ? 'on' : ''}"
-                    onclick="toggleFavoriteFromCard(${JSON.stringify(ex.name).replace(/'/g, "\\'")})"
-                    title="${userPrefs.favorites.has(ex.name) ? 'Unstar' : 'Star this exercise'}">★</button>
-            <button class="exercise-menu" onclick="removeExercise(${exIdx})" title="Remove">remove</button>
-          </div>
-        </div>
-        ${last ? `<div class="last-hint">Last time: <b>${last}</b></div>` : ''}
-        <div class="sets-list">
-          <div class="sets-header"><div>SET</div><div>REPS</div><div>WEIGHT</div><div></div></div>
-          ${ex.sets.map((s, sIdx) => `
-            <div class="set-row">
-              <div class="set-num">${sIdx + 1}</div>
-              <input type="number" inputmode="numeric" value="${s.reps ?? ''}" placeholder="reps"
-                     onchange="updateSet(${exIdx}, ${sIdx}, 'reps', this.value)" />
-              <input type="number" inputmode="decimal" step="2.5" value="${s.weight ?? ''}" placeholder="lbs"
-                     onchange="updateSet(${exIdx}, ${sIdx}, 'weight', this.value)" />
-              <button class="set-del" onclick="removeSet(${exIdx}, ${sIdx})">✕</button>
-            </div>
-          `).join('')}
-          <button class="add-set-btn" onclick="addSet(${exIdx})">+ Add Set</button>
-        </div>
-      </div>
-    `;
-  }).join('');
+  c.innerHTML = currentWorkout.am.exercises.map((ex, exIdx) => renderExerciseCard(ex, exIdx, currentWorkout.am.exercises, {
+    onRest: `updateAmRest(${exIdx}, this.value)`,
+    onGroup: `toggleAmGroup(${exIdx})`,
+    onRemove: `removeExercise(${exIdx})`,
+    onSetChange: (sIdx, f) => `updateSet(${exIdx}, ${sIdx}, '${f}', this.value)`,
+    onSetDel: (sIdx) => `removeSet(${exIdx}, ${sIdx})`,
+    onAddSet: `addSet(${exIdx})`,
+  })).join('');
 }
 
 function renderMetconList() {
