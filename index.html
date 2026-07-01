@@ -881,6 +881,24 @@
   input[type=number]::-webkit-outer-spin-button,
   input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
   input[type=number] { -moz-appearance: textfield; }
+
+  /* Section-scoped textarea for notes / custom types — matches width of cardio/metcon cards
+     via .pm-card wrapper, grows vertically as text is entered (via autoGrow()). */
+  .section-textarea {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 4px 2px;
+    resize: none;              /* no manual drag-resize — height is auto-grown */
+    min-height: 96px;
+    overflow: hidden;
+  }
+  .section-textarea:focus { outline: none; }
+  .section-textarea::placeholder { color: var(--muted); }
 </style>
 </head>
 <body>
@@ -1303,10 +1321,15 @@ async function renderDaySections() {
     else currentWorkout.sections[i].type = sec.type;
     return renderSectionShell(i, sec, currentWorkout.sections[i].state);
   }).join('');
-  // Hydrate lists (strength exercises + metcon movements) after HTML is in the DOM
+  // Hydrate lists (strength exercises + metcon movements) after HTML is in the DOM.
+  // Also size any notes/custom textareas to fit their initial content.
   currentTemplate.sections.forEach((sec, i) => {
     if (sec.type === 'strength') renderStrengthList(i);
     else if (sec.type === 'metcon') renderMetconMovementList(i);
+    else if (sec.type === 'notes' || sec.type === 'custom') {
+      const ta = document.getElementById(`sec-${i}-notes`);
+      if (ta) autoGrow(ta);
+    }
   });
 }
 
@@ -1401,8 +1424,8 @@ function renderSectionShell(i, sec, state) {
     </div>
     <div id="sec-${i}-metcon-list"></div>
     <button class="add-exercise-btn" style="margin-top: 12px; padding: 14px;" onclick="openModal('picker', ${i})">Add Movement</button></div>`,
-    notes:    () => `<textarea id="sec-${i}-notes" style="margin-top: 8px;" placeholder="How'd it go? Anything worth remembering?" onchange="autoSave()">${escapeHtml(state.text || '')}</textarea>`,
-    custom:   () => `<textarea id="sec-${i}-notes" style="margin-top: 8px;" placeholder="Log anything you want here..." onchange="autoSave()">${escapeHtml(state.text || '')}</textarea>`,
+    notes:    () => `<div class="pm-card"><textarea id="sec-${i}-notes" class="section-textarea" placeholder="How'd it go? Anything worth remembering?" oninput="autoGrow(this)" onchange="autoSave()">${escapeHtml(state.text || '')}</textarea></div>`,
+    custom:   () => `<div class="pm-card"><textarea id="sec-${i}-notes" class="section-textarea" placeholder="Log anything you want here..." oninput="autoGrow(this)" onchange="autoSave()">${escapeHtml(state.text || '')}</textarea></div>`,
   })[sec.type];
   return `<div class="section">${header}${body ? body() : `<div style="color:var(--muted);font-size:13px;">Unknown section type "${sec.type}"</div>`}</div>`;
 }
@@ -1440,6 +1463,12 @@ function renderStrengthList(sIdx) {
       </div>
     </div>`;
   }).join('');
+}
+
+// Grows a textarea's height to fit its content (called on every keystroke)
+function autoGrow(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.max(96, el.scrollHeight) + 'px';
 }
 
 function renderMetconMovementList(sIdx) {
