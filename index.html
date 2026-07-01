@@ -2344,9 +2344,22 @@ Do NOT print the raw JSON. Do NOT explain fields. Do NOT include the object outs
     "time": number | null,
     "rpe": number | null,                            // 1-10
     "exercises": [{ "name": "string", "reps": number | null }]
-  }
+  },
+  "new_exercises": [                                 // Optional — see EXTENDING THE POOL below
+    { "name": "string", "muscle": "chest|back|biceps|triceps|shoulders|quads|hamstrings|calves|abs|full_body" }
+  ]
 }
 \`\`\`
+
+# EXTENDING THE POOL
+
+Any exercise I mention that looks unusual or specific to my gym (e.g. a machine brand name, a novel movement, a personal cue like "biceps blaster" or "the weird cable thing") should be added to my personal exercise pool so it's suggested next time. Include it in the \`new_exercises\` array with the best-guess muscle group. On import, the app POSTs each new entry to my custom-exercises pool before saving the workout.
+
+Rules for \`new_exercises\`:
+- Only add exercises YOU introduced (not standard-vocabulary ones like "Bench Press" or "Pull-ups" — those are already in the pool).
+- One entry per unique new exercise, even if it appears in multiple sets.
+- Pick ONE muscle from: \`chest\`, \`back\`, \`biceps\`, \`triceps\`, \`shoulders\`, \`quads\`, \`hamstrings\`, \`calves\`, \`abs\`, \`full_body\`. Don't invent new groups.
+- Omit the array entirely (don't include \`"new_exercises": []\`) if I only used standard exercises.
 
 # RULES ON VALUES
 

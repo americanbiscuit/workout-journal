@@ -208,6 +208,10 @@ function renderPreview(w) {
       ${w.sleep ? `<div class="item">Sleep: <strong>${w.sleep} hr</strong></div>` : ''}
       ${w.energy ? `<div class="item">Energy: <strong>${w.energy}/10</strong></div>` : ''}
     </div>` : ''}
+    ${(w.new_exercises || w.newExercises)?.length ? `<h2>New exercises to add to your pool</h2>
+      <div class="pre">${(w.new_exercises || w.newExercises).map(x =>
+        `<div class="item">+ <strong>${escapeHtml(x.name)}</strong> <span class="subtle">→ ${escapeHtml(x.muscle || x.category || 'full_body')}</span></div>`
+      ).join('')}</div>` : ''}
     <div class="btn-row">
       <button onclick="saveWorkout()">Save to Journal</button>
       <button class="secondary" onclick="showRawEditor()">Edit JSON</button>
@@ -241,10 +245,29 @@ async function saveWorkout() {
     return;
   }
   try {
+    // If the AI included new_exercises (or newExercises), add each to the user's
+    // custom exercise pool BEFORE saving the workout. Duplicates return 409 and
+    // are silently ignored so re-import stays idempotent.
+    const newEx = parsedWorkout.new_exercises || parsedWorkout.newExercises || [];
+    const validMuscles = ['chest','back','biceps','triceps','shoulders','quads','hamstrings','calves','abs','full_body'];
+    for (const ex of newEx) {
+      if (!ex?.name) continue;
+      const muscle = validMuscles.includes(ex.muscle || ex.category)
+        ? (ex.muscle || ex.category) : 'full_body';
+      try {
+        await fetch('/api/custom-exercises', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: ex.name.trim(), category: muscle, focus_note: ex.focus_note || null }),
+        });
+      } catch (e) { console.warn('Failed to add', ex.name, e); }
+    }
+    // Strip AI-side keys the workouts endpoint doesn't care about before PUT
+    const { new_exercises, newExercises, ...workoutForSave } = parsedWorkout;
     const res = await fetch(`${API_BASE}/${parsedWorkout.date}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(parsedWorkout),
+      body: JSON.stringify(workoutForSave),
     });
     if (res.status === 401) {
       // Save the import URL so we come back after login
