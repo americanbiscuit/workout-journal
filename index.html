@@ -937,7 +937,9 @@
         </div>
         <button class="day-nav" onclick="shiftDay(1)">›</button>
       </div>
-      <button class="category-pill" id="categoryPill" onclick="openModal('category')">LEGS</button>
+      <!-- Category pill (Chest/Tri, Back/Bi, etc.) is a customization now — off by default.
+           Toggle it in Menu → Settings. Preference key: stormwatch_show_category_pill. -->
+      <button class="category-pill" id="categoryPill" onclick="openModal('category')" style="display:none;">LEGS</button>
     </div>
 
     <!-- Template pill: shows which template is active for this date (from schedule → weekly map → template) -->
@@ -955,18 +957,18 @@
         <div class="pm-row three" style="margin-top: 12px">
           <div class="input-group">
             <label>Body Wt</label>
-            <input type="number" inputmode="decimal" id="bodyWeight" placeholder="—" onchange="autoSave()" />
+            <input type="number" inputmode="decimal" id="bodyWeight" placeholder="—" oninput="autoSaveDebounced()" onchange="autoSave()" />
           </div>
           <div class="input-group">
             <label>Sleep (hr)</label>
-            <input type="number" inputmode="decimal" step="0.5" id="sleep" placeholder="—" onchange="autoSave()" />
+            <input type="number" inputmode="decimal" step="0.5" id="sleep" placeholder="—" oninput="autoSaveDebounced()" onchange="autoSave()" />
           </div>
           <div class="input-group">
             <label>Energy /10</label>
-            <input type="number" inputmode="numeric" min="1" max="10" id="energy" placeholder="—" onchange="autoSave()" />
+            <input type="number" inputmode="numeric" min="1" max="10" id="energy" placeholder="—" oninput="autoSaveDebounced()" onchange="autoSave()" />
           </div>
         </div>
-        <textarea id="dayNotes" placeholder="How'd it go? Anything to remember next time?" onchange="autoSave()"></textarea>
+        <textarea id="dayNotes" placeholder="How'd it go? Anything to remember next time?" oninput="autoSaveDebounced()" onchange="autoSave()"></textarea>
       </div>
     </details>
   </div>
@@ -1023,32 +1025,137 @@
 // ============================================================
 // EXERCISE POOL
 // ============================================================
+// Exercise pool organized by primary muscle group (no more AM/PM split).
+// Each day category (Chest/Tri, Back/Bi, etc.) resolves to a list of muscle
+// groups via CATEGORY_MUSCLES — the picker for a day shows exercises from
+// all its mapped muscles + full_body.
 const POOL = {
-  "Chest/Tri": {
-    am: ["Machine Chest Press","Cable Chest Press","Incline DB Press","Flat DB Press","Decline DB Press","DB Chest Fly","Cable Fly (High)","Cable Fly (Mid)","Cable Fly (Low)","Pec Deck Machine","Single-Arm DB Press","Tricep Pushdown (Bar)","Tricep Pushdown (Rope)","Overhead Cable Tricep Extension","DB Skull Crushers","DB Tricep Kickback","Overhead DB Tricep Extension","Single-Arm DB Tricep Extension","Tate Press","Close-Grip DB Press","JM Press (DB)","Cable Single-Arm Pushdown"],
-    pm: ["Standard Pushups","Diamond Pushups","Wide Pushups","Decline Pushups","Incline Pushups","Archer Pushups","Hindu Pushups","Pseudo Planche Pushups","Plyo Pushups","Clap Pushups","Spider-Man Pushups","T-Pushups","Parallel Bar Dips","Ring Dips","Bench Dips","Burpees","Tricep Pushdown Burnout","Pike Pushups (tri bias)","Pushup-to-Plank Taps","Explosive Pushups (off blocks)"]
-  },
-  "Back/Bi": {
-    am: ["Lat Pulldown (Wide)","Lat Pulldown (Close-Grip)","Lat Pulldown (Neutral)","Cable Row (High)","Cable Row (Mid)","Cable Row (Low)","Single-Arm Cable Row","Machine Row (Iso)","T-Bar Row (Machine)","DB One-Arm Row","Chest-Supported DB Row","DB High Pull","Reverse Pec Deck","Face Pulls","Straight-Arm Pulldown","DB Shrugs","Cable Shrugs","DB Curls","Hammer Curls","Concentration Curls","Preacher Curl Machine","Cable Curls (Bar)","Cable Curls (Rope)","Incline DB Curls","Spider Curls","21s","Drag Curls","Cross-Body Hammer Curls","Zottman Curls"],
-    pm: ["Pull-ups","Chin-ups","Neutral-Grip Pull-ups","Inverted Rows (TRX)","Inverted Rows (Bar)","Pushup Rows (Renegade)","Scapula Pulls","Dead Hangs","Chin Hold Isometric","Australian Pull-ups","Towel Rows","DB Curl Burnout","Hammer Curl Burnout","Cable Curl 21s","Band Pull-aparts","Face Pull Burnout"]
-  },
-  "Shoulders": {
-    am: ["Machine Shoulder Press","Seated DB Shoulder Press","Standing DB Press","Arnold Press","Single-Arm DB Press","DB Lateral Raise","Cable Lateral Raise","Machine Lateral Raise","DB Front Raise","Cable Front Raise","Plate Front Raise","DB Rear Delt Fly","Reverse Pec Deck","Cable Rear Delt Cross","Face Pulls","Cable Y-Raise","Cable W-Raise","DB Shrugs","Cuban Press","Around-the-Worlds","Bottoms-Up DB Press","DB Z-Press"],
-    pm: ["Pike Pushups","Decline Pike Pushups","Wall Walks","Wall Handstand Hold","Plank Shoulder Taps","Lateral Raise Burnout","Bear Crawls","Crab Walks","Plank-to-Down-Dog","Plate Shoulder Circles","Shoulder Tap Pushups","Pushup-to-Pike","Cable Lateral Iso Hold"]
-  },
-  "Abs": {
-    am: ["Cable Crunches","Weighted Decline Situps","Ab Wheel Rollouts","Hanging Leg Raises","Hanging Knee Raises","Captain's Chair Leg Raises","Russian Twists (Weighted)","Plank w/ Plate","Side Plank w/ Weight","Bird Dog","DB Side Bends","Pallof Press (Cable)","Cable Wood Chops","Standing Cable Crunch","Stir-the-Pot","Weighted V-Ups"],
-    pm: ["V-Ups","Hollow Holds","Hollow Rocks","Bicycle Crunches","Mountain Climbers","Plank","Side Plank","RKC Plank","Toes-to-Bar","Knees-to-Elbows","Dragon Flags","Windshield Wipers","L-Sit Hold","Russian Twists (BW)","Reverse Crunches","Flutter Kicks","Scissor Kicks","Plank Up-Downs","Cross-Body Mountain Climbers"]
-  },
-  "Legs": {
-    am: ["Leg Press","Leg Curls (Seated)","Leg Curls (Lying)","Leg Extensions","Hack Squat Machine","DB Goblet Squat","DB Walking Lunges","DB Reverse Lunges","DB Step-Ups","Bulgarian Split Squat (DB)","DB Sumo Squat","DB Romanian Deadlift","DB Single-Leg RDL","Hip Thrust (Machine)","DB Hip Thrust","Glute Kickback Machine","Cable Kickbacks","Hip Abduction Machine","Hip Adduction Machine","Standing Calf Raise (DB)","Seated Calf Raise (Machine)","Single-Leg Calf Raise (DB)"],
-    pm: ["Bulgarian Split Squat Jumps","Box Jumps","Broad Jumps","Jump Squats","Tuck Jumps","Lateral Box Jumps","Lateral Bounds","Skater Jumps","Single-Leg Hops","Walking Lunges (BW)","Reverse Lunges (BW)","Cossack Squats","Sissy Squats","Bulgarian Split Squats (BW)","Wall Sits","Pistol Squat Progressions","Step-Ups (BW)","Calf Raise Burnout"]
-  },
-  "Universal": {
-    am: [],
-    pm: ["Box Jumps","Ball Slams","Broad Jumps","Burpees","Mountain Climbers","Battle Ropes","Rowing Erg Sprint","Assault Bike Sprint","Jump Rope (singles)","Jump Rope (double-unders)","Bear Crawls","Crab Walks","Farmer Carry","Sled Push","Sled Pull","Devil Press","Thruster (DB)"]
-  }
+  chest: [
+    "Barbell Bench Press","Incline Barbell Bench","Decline Barbell Bench","Close-Grip Bench Press","Reverse-Grip Bench Press",
+    "Smith Machine Bench","Smith Incline Press","Machine Chest Press","Iso-Lateral Chest Press","Hammer Strength Incline Press","Pec Deck Machine",
+    "Flat DB Press","Incline DB Press","Decline DB Press","DB Floor Press","Neutral-Grip DB Press","Single-Arm DB Press","DB Squeeze Press",
+    "Cable Chest Press","Cable Fly (Low)","Cable Fly (Mid)","Cable Fly (High)","Cable Crossover","Single-Arm Cable Fly",
+    "DB Chest Fly","Incline DB Fly","Decline DB Fly","Landmine Press","Landmine Chest Press","Svend Press",
+    "Standard Pushups","Diamond Pushups","Wide Pushups","Decline Pushups","Incline Pushups","Deficit Pushups","Archer Pushups","Hindu Pushups","Pseudo Planche Pushups","Plyo Pushups","Clap Pushups","Spider-Man Pushups","T-Pushups","Explosive Pushups (off blocks)","Weighted Pushups",
+    "Parallel Bar Dips","Ring Dips","Assisted Dips (Machine)","Weighted Dips","Bench Dips",
+  ],
+  back: [
+    "Conventional Deadlift","Sumo Deadlift","Trap Bar Deadlift","Snatch-Grip Deadlift","Deficit Deadlift","Block Pull Deadlift","Rack Pull",
+    "Pull-ups","Chin-ups","Neutral-Grip Pull-ups","Weighted Pull-ups","Wide-Grip Pull-ups","Assisted Pull-ups (Machine)","Assisted Pull-ups (Band)","Australian Pull-ups","Inverted Rows (Bar)","Inverted Rows (TRX)",
+    "Lat Pulldown (Wide)","Lat Pulldown (Close-Grip)","Lat Pulldown (Neutral)","Behind-the-Neck Pulldown","Single-Arm Lat Pulldown","Straight-Arm Pulldown",
+    "Barbell Row","Pendlay Row","Yates Row","T-Bar Row","T-Bar Row (Machine)","Meadows Row","Seal Row","Chest-Supported Row (Machine)",
+    "Cable Row (High)","Cable Row (Mid)","Cable Row (Low)","Single-Arm Cable Row","Wide-Grip Cable Row","V-Grip Cable Row",
+    "DB One-Arm Row","Chest-Supported DB Row","DB Kroc Row","Bent-Over DB Row","DB High Pull",
+    "Machine Row (Iso-Lateral)","Hammer Strength Row",
+    "Face Pulls","Reverse Pec Deck","Rear Delt Fly (DB)","Rear Delt Fly (Cable)","Cable Rear Delt Cross","Band Pull-Aparts",
+    "DB Shrugs","Cable Shrugs","Barbell Shrugs","Behind-Back Shrugs","Trap Bar Shrugs",
+    "Scapula Pulls","Dead Hangs","Chin Hold Isometric","Renegade Rows","Towel Rows",
+  ],
+  biceps: [
+    "Barbell Curl","EZ-Bar Curl","Wide-Grip Barbell Curl","Close-Grip Barbell Curl","Reverse Curl (Barbell)",
+    "DB Curl","Alternating DB Curl","Hammer Curl","Cross-Body Hammer Curl","Incline DB Curl","Decline DB Curl","Concentration Curl","Spider Curl","Waiter Curl","Zottman Curls","Drag Curls","21s",
+    "Preacher Curl (Barbell)","Preacher Curl (DB)","Preacher Curl Machine","Machine Curl","Iso-Lateral Curl Machine",
+    "Cable Curl (Bar)","Cable Curl (Rope)","Cable Curl (Straight Bar)","Cable Reverse Curl","Bayesian Cable Curl","Single-Arm Cable Curl","Cable Preacher Curl",
+    "Chin-ups (weighted for biceps)","Inverted Chin Row","Ring Curls","Band Curls (Rope-Assist)",
+    "Cross-Body Hammer Curls","Hammer Curl Burnout","Cable Curl 21s","DB Curl Burnout",
+  ],
+  triceps: [
+    "Close-Grip Bench Press","Board Press (Tricep)","Floor Press",
+    "Skull Crushers (Barbell)","Skull Crushers (EZ-Bar)","Skull Crushers (DB)","JM Press","Tate Press","DB Rolling Skull Crushers","Rolling Tricep Extension",
+    "Tricep Pushdown (Bar)","Tricep Pushdown (Rope)","Tricep Pushdown (V-Bar)","Reverse-Grip Pushdown","Single-Arm Cable Pushdown","Straight-Bar Pushdown",
+    "Overhead Cable Tricep Extension","Overhead Rope Extension","Overhead DB Tricep Extension","Single-Arm Overhead DB Extension","EZ-Bar French Press","Barbell French Press","Single-Arm French Press",
+    "DB Tricep Kickback","Cable Kickback","Bent-Over Cable Kickback","Single-Arm DB Kickback",
+    "Close-Grip DB Press","Close-Grip Push-ups","Diamond Push-ups","Bodyweight Skull Crushers",
+    "Parallel Bar Dips (Tri Focus)","Bench Dips","Ring Dips (Tri)","Assisted Dips (Tri)","Weighted Bench Dips",
+    "Tricep Extension Machine","Iso-Lateral Tricep Machine",
+  ],
+  shoulders: [
+    "Overhead Press (Barbell)","Standing OHP","Seated Barbell OHP","Push Press","Bradford Press","Behind-the-Neck Press",
+    "DB Shoulder Press (Seated)","DB Shoulder Press (Standing)","Single-Arm DB Press","Arnold Press","DB Z-Press","Bottoms-Up DB Press","Half-Kneeling DB Press",
+    "Machine Shoulder Press","Smith Machine OHP","Iso-Lateral Shoulder Press",
+    "DB Lateral Raise","Seated DB Lateral Raise","Leaning DB Lateral Raise","Cable Lateral Raise","Behind-Back Cable Lateral","Machine Lateral Raise","Lu Raises","Y-Raise (DB)","Egyptian Lateral Raise",
+    "DB Front Raise","Cable Front Raise","Plate Front Raise","Barbell Front Raise","Alternating DB Front Raise",
+    "DB Rear Delt Fly","Reverse Pec Deck","Cable Rear Delt Cross","Face Pulls (High Cable)","Face Pulls (Rope)","Cable Y-Raise","Cable W-Raise","Prone Y Raise",
+    "Cuban Press","Around-the-Worlds","Scott Press","Barbell Shrugs","DB Shrugs","Trap-3 Raise",
+    "Handstand Push-ups","Pike Push-ups","Decline Pike Push-ups","Wall Walks","Wall Handstand Hold","Shoulder Tap Push-ups","Pushup-to-Pike",
+    "Landmine Press","Landmine Half-Kneeling Press","Kettlebell Bottoms-Up Press",
+  ],
+  quads: [
+    "Back Squat (Low-Bar)","Back Squat (High-Bar)","Front Squat","Zercher Squat","Box Squat","Pause Squat","Tempo Squat","Safety Bar Squat","Anderson Squat",
+    "Leg Press (45°)","Vertical Leg Press","Horizontal Leg Press","Single-Leg Leg Press","Machine Hack Squat","Belt Squat","V-Squat",
+    "Bulgarian Split Squat (DB)","Bulgarian Split Squat (Barbell)","Split Squat","Reverse Lunge (DB)","Reverse Lunge (Barbell)","Walking Lunges (DB)","Walking Lunges (Barbell)","Front-Rack Lunges","Curtsy Lunges","Lateral Lunges","Deficit Reverse Lunge",
+    "Cyclist Squat","Sissy Squat","Sissy Squat Machine","Heels-Elevated Goblet Squat","Goblet Squat","DB Sumo Squat","Kettlebell Goblet Squat",
+    "Leg Extension","Single-Leg Leg Extension","Iso-Lateral Leg Extension",
+    "Step-Ups (DB)","Step-Ups (Barbell)","Weighted Box Step-Ups","Pistol Squat","Pistol Squat Progression","Cossack Squats","Wall Sit","Weighted Wall Sit",
+  ],
+  hamstrings: [
+    "Romanian Deadlift (Barbell)","Romanian Deadlift (DB)","Single-Leg RDL (DB)","Single-Leg RDL (Kettlebell)","Stiff-Leg Deadlift",
+    "Good Morning (Barbell)","Seated Good Morning","Cable Pull-Through","Cable Straight-Leg Deadlift",
+    "Lying Leg Curl","Seated Leg Curl","Standing Leg Curl","Single-Leg Leg Curl","Prone Leg Curl","Kneeling Leg Curl",
+    "Nordic Hamstring Curl","Assisted Nordic","Slider Leg Curl","Physioball Leg Curl","Glute-Ham Raise (GHR)",
+    "Barbell Hip Thrust","DB Hip Thrust","Single-Leg Hip Thrust","Kas Glute Bridge","Machine Hip Thrust","Frog Pumps",
+    "Kettlebell Swing (Russian)","Kettlebell Swing (American)","One-Arm Kettlebell Swing","Reverse Hyperextension","45° Back Extension",
+    "Glute Kickback (Machine)","Cable Glute Kickback","DB Deadlift","Sumo DB Deadlift",
+  ],
+  calves: [
+    "Standing Calf Raise (Machine)","Standing Calf Raise (Barbell)","Standing Calf Raise (Smith)","Standing Calf Raise (DB)","Single-Leg Standing Calf Raise",
+    "Seated Calf Raise (Machine)","Seated Calf Raise (DB)","Seated Calf Raise (Plate)","Tibialis Raise","Tibialis Raise (Band)",
+    "Donkey Calf Raise","Leg Press Calf Raise","Single-Leg Leg Press Calf Raise",
+    "Calf Raise (Bodyweight)","Deficit Calf Raise","Weighted Deficit Calf Raise","Toe Walks","Farmer Walk on Toes","Barefoot Calf Raise",
+    "Jump Rope (Singles)","Jump Rope (Double-Unders)","Jump Rope (Cross-Overs)","Calf Raise Burnout","Broad Jumps","Box Jumps (Calf Focus)",
+  ],
+  abs: [
+    "Cable Crunches","Kneeling Cable Crunches","Standing Cable Crunch","Weighted Decline Sit-ups","Weighted Sit-ups","Ab Wheel Rollout","Standing Ab Wheel","Barbell Rollout",
+    "Hanging Leg Raise","Hanging Knee Raise","Toes-to-Bar","Knees-to-Elbows","Captain's Chair Leg Raise","Captain's Chair Knee Raise","Hanging Windshield Wipers","Hanging L-Sit","Dragon Flag",
+    "V-Ups","Weighted V-Ups","Hollow Hold","Hollow Rocks","L-Sit Hold","Front Lever Progression",
+    "Bicycle Crunches","Mountain Climbers","Cross-Body Mountain Climbers","Reverse Crunch","Flutter Kicks","Scissor Kicks","Windshield Wipers (Floor)",
+    "Plank","Long-Lever Plank","Weighted Plank","Side Plank","Weighted Side Plank","RKC Plank","Copenhagen Plank","Plank Up-Downs","Plank Shoulder Taps","Stir-the-Pot",
+    "Russian Twist (BW)","Russian Twist (Weighted)","Russian Twist (Plate)","DB Side Bend","Cable Side Bend","Suitcase Carry",
+    "Pallof Press (Cable)","Pallof Press (Band)","Anti-Rotation Hold","Cable Wood Chop","Reverse Wood Chop","Landmine Twist","Landmine 180",
+    "Dead Bug","Bird Dog","Weighted Bird Dog","Hollow Body Rock",
+  ],
+  full_body: [
+    "Burpees","Devil Press","Man Makers","Squat Thrust","Bear Crawl","Crab Walk","Duck Walk","Inch Worm","Spider-Man Crawl",
+    "Thruster (DB)","Thruster (Barbell)","Thruster (Kettlebell)","Clean & Press (DB)","Clean & Press (Barbell)","Power Clean","Hang Clean","Push Jerk","Split Jerk","Barbell Complex",
+    "Kettlebell Swing","Kettlebell Snatch","Turkish Get-Up","Kettlebell Clean","Kettlebell Windmill","Kettlebell Halo",
+    "Farmer Carry","Suitcase Carry","Overhead Carry","Front Rack Carry","Yoke Carry","Zercher Carry",
+    "Sled Push","Sled Pull","Sled Drag","Prowler Push","Reverse Sled Drag",
+    "Battle Ropes (Waves)","Battle Ropes (Slams)","Battle Ropes (Circles)","Battle Ropes (Alternating)",
+    "Assault Bike Sprint","Rower Sprint","Ski Erg Sprint","Airdyne Intervals","Concept 2 Bike",
+    "Box Jumps","Broad Jumps","Depth Jumps","Lateral Bounds","Skater Jumps","Tuck Jumps","Jump Squats","Split Squat Jumps","Lateral Box Jumps","Single-Leg Hops",
+    "Ball Slams","Wall Balls","Med Ball Throws (Rotational)","Med Ball Chest Pass","Med Ball Overhead Throw",
+    "Wall Sits","Wall Walks","Handstand Hold",
+    "Hip Halo Warmup","Band Pull-Aparts","Cat-Cow","World's Greatest Stretch","90/90 Hip Rotations",
+  ],
 };
+
+// Which muscle groups show up in the picker for each day category.
+// full_body is included in every category so cardio/carries/plyos are always accessible.
+const CATEGORY_MUSCLES = {
+  "Chest/Tri": ['chest', 'triceps', 'full_body'],
+  "Back/Bi":   ['back', 'biceps', 'full_body'],
+  "Shoulders": ['shoulders', 'full_body'],
+  "Legs":      ['quads', 'hamstrings', 'calves', 'full_body'],
+  "Abs":       ['abs', 'full_body'],
+};
+
+// Human-readable label for each muscle group (used in picker section headers + pool page)
+const MUSCLE_LABEL = {
+  chest: 'Chest',
+  back: 'Back',
+  biceps: 'Biceps',
+  triceps: 'Triceps',
+  shoulders: 'Shoulders',
+  quads: 'Quads',
+  hamstrings: 'Hamstrings & Glutes',
+  calves: 'Calves',
+  abs: 'Core & Abs',
+  full_body: 'Full Body / Supporting',
+};
+
+// Order muscle groups appear in the picker + pool page
+const MUSCLE_ORDER = ['chest', 'back', 'biceps', 'triceps', 'shoulders', 'quads', 'hamstrings', 'calves', 'abs', 'full_body'];
+
 const DAY_TO_CATEGORY = { 0: "Abs", 1: "Chest/Tri", 2: "Back/Bi", 3: "Shoulders", 4: "Abs", 5: "Legs", 6: "Abs" };
 const FULL_DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const SHORT_DAY_NAMES = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
@@ -1183,12 +1290,47 @@ async function initAuth() {
   }
 }
 
-// Helper: get the merged exercise list for a category+phase (defaults + customs - hidden)
-function getMergedExercises(category, phase) {
-  const defaults = POOL[category]?.[phase] || [];
-  const customs = userCustomExercises.filter(c => c.category === category && c.phase === phase).map(c => c.name);
-  const merged = [...new Set([...defaults, ...customs])];
-  return merged;
+// Merged exercises for a day category, grouped by muscle group.
+// Returns [{muscle, label, exercises: [...]}, ...] preserving MUSCLE_ORDER.
+// Sources: POOL[muscle] defaults + userCustomExercises where category matches
+// the day category (legacy) OR one of the mapped muscle groups (new records).
+function getMergedExercisesForCategory(category) {
+  const muscles = CATEGORY_MUSCLES[category] || MUSCLE_ORDER;
+  return muscles.map(muscle => {
+    const defaults = POOL[muscle] || [];
+    // Legacy: customs saved with category="Chest/Tri" etc. Show under the first muscle bucket.
+    // New: customs saved with category=muscle group name.
+    const customs = userCustomExercises
+      .filter(c => c.category === muscle || (c.category === category && muscle === muscles[0]))
+      .map(c => c.name);
+    const exercises = [...new Set([...defaults, ...customs])];
+    return { muscle, label: MUSCLE_LABEL[muscle] || muscle, exercises };
+  }).filter(g => g.exercises.length > 0);
+}
+
+// Flat list of every exercise across POOL + customs (used for star-view / all-view)
+function getAllExercisesGroupedByMuscle() {
+  return MUSCLE_ORDER.map(muscle => {
+    const defaults = POOL[muscle] || [];
+    const customs = userCustomExercises.filter(c => c.category === muscle).map(c => c.name);
+    const exercises = [...new Set([...defaults, ...customs])];
+    return { muscle, label: MUSCLE_LABEL[muscle] || muscle, exercises };
+  }).filter(g => g.exercises.length > 0);
+}
+
+// Refresh custom exercises from server — call before opening the picker so
+// exercises added on pool.html show up immediately without a page reload.
+async function refreshCustomExercises() {
+  if (!syncEnabled) return;
+  try {
+    const r = await fetch('/api/custom-exercises');
+    if (r.ok) {
+      const d = await r.json();
+      userCustomExercises = d.exercises || [];
+    }
+  } catch (e) {
+    console.warn('Custom exercises refresh failed', e);
+  }
 }
 
 function renderUserBadge() {
@@ -1276,6 +1418,7 @@ const DEFAULT_SECTION_TITLES = { strength: 'Strength', cardio: 'Cardio', metcon:
 
 async function renderAll() {
   document.getElementById('categoryPill').textContent = currentWorkout.category.toUpperCase();
+  applyCategoryPillPref();
   await renderDaySections();
   document.getElementById('bodyWeight').value = currentWorkout.bodyWeight ?? '';
   document.getElementById('sleep').value = currentWorkout.sleep ?? '';
@@ -1363,10 +1506,10 @@ function classicSectionsHTML() {
             </select>
           </div>
           <div class="input-group"><label>Distance (mi)</label>
-            <input type="number" inputmode="decimal" step="0.1" id="cardioDist" value="2" onchange="autoSave()" />
+            <input type="number" inputmode="decimal" step="0.1" id="cardioDist" value="2" oninput="autoSaveDebounced()" onchange="autoSave()" />
           </div>
           <div class="input-group"><label>Time (min)</label>
-            <input type="number" inputmode="decimal" step="0.1" id="cardioTime" onchange="autoSave()" />
+            <input type="number" inputmode="decimal" step="0.1" id="cardioTime" oninput="autoSaveDebounced()" onchange="autoSave()" />
           </div>
         </div>
       </div>
@@ -1379,13 +1522,13 @@ function classicSectionsHTML() {
       <div class="pm-card">
         <div class="pm-row three" style="margin-bottom: 14px">
           <div class="input-group"><label>Rounds</label>
-            <input type="number" inputmode="numeric" id="metconRounds" onchange="autoSave()" />
+            <input type="number" inputmode="numeric" id="metconRounds" oninput="autoSaveDebounced()" onchange="autoSave()" />
           </div>
           <div class="input-group"><label>Time (min)</label>
-            <input type="number" inputmode="decimal" step="0.5" id="metconTime" onchange="autoSave()" />
+            <input type="number" inputmode="decimal" step="0.5" id="metconTime" oninput="autoSaveDebounced()" onchange="autoSave()" />
           </div>
           <div class="input-group"><label>RPE /10</label>
-            <input type="number" inputmode="numeric" min="1" max="10" id="metconRPE" onchange="autoSave()" />
+            <input type="number" inputmode="numeric" min="1" max="10" id="metconRPE" oninput="autoSaveDebounced()" onchange="autoSave()" />
           </div>
         </div>
         <div id="metconList"></div>
@@ -1417,22 +1560,22 @@ function renderSectionShell(i, sec, state) {
           <option>Bike</option><option>Row</option><option>Swim</option><option>Elliptical</option><option>—</option>
         </select></div>
       <div class="input-group"><label>Distance (mi)</label>
-        <input type="number" inputmode="decimal" step="0.1" id="sec-${i}-cardio-dist" value="${state.distance ?? ''}" onchange="autoSave()" /></div>
+        <input type="number" inputmode="decimal" step="0.1" id="sec-${i}-cardio-dist" value="${state.distance ?? ''}" oninput="autoSaveDebounced()" onchange="autoSave()" /></div>
       <div class="input-group"><label>Time (min)</label>
-        <input type="number" inputmode="decimal" step="0.1" id="sec-${i}-cardio-time" value="${state.time ?? ''}" onchange="autoSave()" /></div>
+        <input type="number" inputmode="decimal" step="0.1" id="sec-${i}-cardio-time" value="${state.time ?? ''}" oninput="autoSaveDebounced()" onchange="autoSave()" /></div>
     </div></div>`,
     metcon:   () => `<div class="pm-card"><div class="pm-row three" style="margin-bottom: 14px">
       <div class="input-group"><label>Rounds</label>
-        <input type="number" inputmode="numeric" id="sec-${i}-metcon-rounds" value="${state.rounds ?? ''}" onchange="autoSave()" /></div>
+        <input type="number" inputmode="numeric" id="sec-${i}-metcon-rounds" value="${state.rounds ?? ''}" oninput="autoSaveDebounced()" onchange="autoSave()" /></div>
       <div class="input-group"><label>Time (min)</label>
-        <input type="number" inputmode="decimal" step="0.5" id="sec-${i}-metcon-time" value="${state.time ?? ''}" onchange="autoSave()" /></div>
+        <input type="number" inputmode="decimal" step="0.5" id="sec-${i}-metcon-time" value="${state.time ?? ''}" oninput="autoSaveDebounced()" onchange="autoSave()" /></div>
       <div class="input-group"><label>RPE /10</label>
-        <input type="number" inputmode="numeric" min="1" max="10" id="sec-${i}-metcon-rpe" value="${state.rpe ?? ''}" onchange="autoSave()" /></div>
+        <input type="number" inputmode="numeric" min="1" max="10" id="sec-${i}-metcon-rpe" value="${state.rpe ?? ''}" oninput="autoSaveDebounced()" onchange="autoSave()" /></div>
     </div>
     <div id="sec-${i}-metcon-list"></div>
     <button class="add-exercise-btn" style="margin-top: 12px; padding: 14px;" onclick="openModal('picker', ${i})">Add Movement</button></div>`,
-    notes:    () => `<div class="pm-card"><textarea id="sec-${i}-notes" class="section-textarea" placeholder="How'd it go? Anything worth remembering?" oninput="autoGrow(this)" onchange="autoSave()">${escapeHtml(state.text || '')}</textarea></div>`,
-    custom:   () => `<div class="pm-card"><textarea id="sec-${i}-notes" class="section-textarea" placeholder="Log anything you want here..." oninput="autoGrow(this)" onchange="autoSave()">${escapeHtml(state.text || '')}</textarea></div>`,
+    notes:    () => `<div class="pm-card"><textarea id="sec-${i}-notes" class="section-textarea" placeholder="How'd it go? Anything worth remembering?" oninput="autoGrow(this); autoSaveDebounced()" onchange="autoSave()">${escapeHtml(state.text || '')}</textarea></div>`,
+    custom:   () => `<div class="pm-card"><textarea id="sec-${i}-notes" class="section-textarea" placeholder="Log anything you want here..." oninput="autoGrow(this); autoSaveDebounced()" onchange="autoSave()">${escapeHtml(state.text || '')}</textarea></div>`,
   })[sec.type];
   return `<div class="section">${header}${body ? body() : `<div style="color:var(--muted);font-size:13px;">Unknown section type "${sec.type}"</div>`}</div>`;
 }
@@ -1681,7 +1824,42 @@ function findLastHint(name) {
 // ============================================================
 // AUTO-SAVE
 // ============================================================
+// User preference: show the day category pill (Chest/Tri, Back/Bi, etc.) in the day header.
+// Default OFF because most users won't use the built-in categories — day layouts cover that role.
+const CATEGORY_PILL_PREF_KEY = 'workout-journal-show-category-pill';
+function applyCategoryPillPref() {
+  const on = localStorage.getItem(CATEGORY_PILL_PREF_KEY) === '1';
+  const el = document.getElementById('categoryPill');
+  if (el) el.style.display = on ? '' : 'none';
+  const label = document.getElementById('categoryPillPrefLabel');
+  if (label) label.textContent = on ? 'on' : 'off';
+}
+function toggleCategoryPill() {
+  const on = localStorage.getItem(CATEGORY_PILL_PREF_KEY) === '1';
+  localStorage.setItem(CATEGORY_PILL_PREF_KEY, on ? '0' : '1');
+  applyCategoryPillPref();
+  closeModal();
+}
+
+// Flush pending autosaves when the page loses visibility (tab switch, app backgrounded,
+// swipe-to-close). Complements the debounced autoSave() that already fires on every input.
+function flushSave() {
+  if (!currentWorkout) return;
+  clearTimeout(saveTimeout);
+  autoSave();
+}
+window.addEventListener('visibilitychange', () => { if (document.hidden) flushSave(); });
+window.addEventListener('pagehide', flushSave);
+window.addEventListener('beforeunload', flushSave);
+
 let saveTimeout = null;
+let debounceTimer = null;
+// Debounced wrapper — call from oninput handlers so every keystroke schedules
+// a save but only the last one in a 400ms burst actually persists.
+function autoSaveDebounced() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(autoSave, 400);
+}
 function autoSave() {
   // Vitals are universal across all templates
   currentWorkout.bodyWeight = parseFloat(document.getElementById('bodyWeight').value) || null;
@@ -1891,7 +2069,6 @@ function openModal(type, ...args) {
   const body = document.getElementById('modalBody');
   if (type === 'picker') {
     const sec = args[0];
-    // sec is 'am' | 'metcon' (classic) OR a numeric section index (custom template)
     let isMovement = false;
     if (typeof sec === 'number' && currentTemplate?.sections?.[sec]) {
       isMovement = currentTemplate.sections[sec].type === 'metcon';
@@ -1900,6 +2077,11 @@ function openModal(type, ...args) {
     }
     title.textContent = isMovement ? 'Add Movement' : 'Add Exercise';
     search.innerHTML = `<input class="modal-search" id="modalSearchInput" type="text" placeholder="Search..." oninput="filterPicker()" />`;
+    // Refresh customs from server so newly-added ones on pool.html appear here without a full page reload
+    refreshCustomExercises().finally(() => {
+      chips.innerHTML = renderPickerChips();
+      body.innerHTML = renderPickerList();
+    });
     chips.innerHTML = renderPickerChips();
     body.innerHTML = renderPickerList();
     setTimeout(() => document.getElementById('modalSearchInput')?.focus(), 100);
@@ -1923,6 +2105,7 @@ function openModal(type, ...args) {
       <div class="menu-item" onclick="openModal('claudePrompt')">Claude Prompt <span class="meta">log via AI</span></div>
       <div class="menu-item" onclick="openModal('split')">Weekly Split <span class="meta">view</span></div>
       <div class="menu-item" onclick="location.href='/templates.html'">Day Layouts <span class="meta">customize sections</span></div>
+      <div class="menu-item" onclick="toggleCategoryPill()">Show day category pill <span class="meta" id="categoryPillPrefLabel">off</span></div>
       <div class="menu-item" onclick="location.href='/pool.html'">Exercise Pool <span class="meta">browse + star</span></div>
       <div class="menu-item" onclick="location.href='/routines.html'">Routines <span class="meta">saved exercise sets</span></div>
       <div class="menu-item" onclick="exportJSON()">Export Data <span class="meta">save backup</span></div>
@@ -1950,24 +2133,15 @@ function closeModal() { document.getElementById('modalBackdrop').classList.remov
 function closeModalOnBackdrop(e) { if (e.target.id === 'modalBackdrop') closeModal(); }
 
 function renderPickerChips() {
-  const sec = modalContext.args[0];
   const cat = currentWorkout.category;
   const favCount = userPrefs.favorites.size;
   const starsChip = favCount > 0
     ? `<button class="chip ${pickerFilter==='stars'?'active':''}" onclick="setPF('stars')">★ Stars (${favCount})</button>`
     : '';
-  if (sec === 'am') {
-    return `<div class="chips">
-      <button class="chip ${pickerFilter==='current'?'active':''}" onclick="setPF('current')">${cat}</button>
-      ${starsChip}
-      <button class="chip ${pickerFilter==='all'?'active':''}" onclick="setPF('all')">All Categories</button>
-    </div>`;
-  }
   return `<div class="chips">
     <button class="chip ${pickerFilter==='current'?'active':''}" onclick="setPF('current')">${cat}</button>
     ${starsChip}
-    <button class="chip ${pickerFilter==='universal'?'active':''}" onclick="setPF('universal')">Cardio</button>
-    <button class="chip ${pickerFilter==='all'?'active':''}" onclick="setPF('all')">All</button>
+    <button class="chip ${pickerFilter==='all'?'active':''}" onclick="setPF('all')">All muscles</button>
   </div>`;
 }
 function setPF(f) {
@@ -1976,52 +2150,29 @@ function setPF(f) {
   document.getElementById('modalBody').innerHTML = renderPickerList();
 }
 function renderPickerList() {
-  const sec = modalContext.args[0];
-  const phase = sec === 'am' ? 'am' : 'pm';
   const q = (document.getElementById('modalSearchInput')?.value || '').toLowerCase().trim();
   const cat = currentWorkout.category;
-  const groups = [];
+  let groups = [];
 
   if (pickerFilter === 'stars') {
-    // Favorites view — show ONLY starred exercises, filtered to current phase (am/pm)
-    // Group them by category for clarity
-    const favsByCategory = {};
-    [...userPrefs.favorites].forEach(name => {
-      // Find which category+phase this exercise belongs to
-      let found = null;
-      for (const c of CATEGORY_LIST) {
-        if (POOL[c].am.includes(name)) { found = { c, ph: 'am' }; break; }
-        if (POOL[c].pm.includes(name)) { found = { c, ph: 'pm' }; break; }
-      }
-      if (!found) {
-        const custom = userCustomExercises.find(x => x.name === name);
-        if (custom) found = { c: custom.category, ph: custom.phase };
-      }
-      if (!found) found = { c: 'Universal', ph: phase };
-      if (found.ph !== phase) return; // only show favorites matching the current section
-      (favsByCategory[found.c] = favsByCategory[found.c] || []).push(name);
+    // Favorites view — starred exercises grouped by muscle
+    const favsByMuscle = {};
+    const allGroups = getAllExercisesGroupedByMuscle();
+    allGroups.forEach(g => {
+      const favs = g.exercises.filter(name => userPrefs.favorites.has(name));
+      if (favs.length) favsByMuscle[g.muscle] = { muscle: g.muscle, label: '★ ' + g.label, exercises: favs };
     });
-    // Put current day's category first
-    const order = [cat, ...CATEGORY_LIST.filter(c => c !== cat), 'Universal'];
-    order.forEach(c => {
-      if (favsByCategory[c]?.length) groups.push(['★ ' + c, favsByCategory[c]]);
-    });
-  } else if (sec === 'am') {
-    if (pickerFilter === 'current') groups.push([cat, getMergedExercises(cat, 'am')]);
-    else CATEGORY_LIST.forEach(c => groups.push([c, getMergedExercises(c, 'am')]));
+    groups = MUSCLE_ORDER.map(m => favsByMuscle[m]).filter(Boolean);
+  } else if (pickerFilter === 'all') {
+    groups = getAllExercisesGroupedByMuscle();
   } else {
-    if (pickerFilter === 'current') groups.push([cat + ' supplement', getMergedExercises(cat, 'pm')]);
-    else if (pickerFilter === 'universal') groups.push(['Cardio + Full Body', getMergedExercises('Universal', 'pm')]);
-    else {
-      CATEGORY_LIST.forEach(c => groups.push([c + ' supplement', getMergedExercises(c, 'pm')]));
-      groups.push(['Cardio + Full Body', getMergedExercises('Universal', 'pm')]);
-    }
+    // 'current' — muscles mapped to the day category
+    groups = getMergedExercisesForCategory(cat);
   }
 
   let html = '';
-  groups.forEach(([gn, list]) => {
-    // Filter by search, then drop hidden (unless filter=stars), then sort favorites to top
-    let f = list.filter(e => !q || e.toLowerCase().includes(q));
+  groups.forEach(g => {
+    let f = g.exercises.filter(e => !q || e.toLowerCase().includes(q));
     if (pickerFilter !== 'stars') f = f.filter(e => !userPrefs.hidden.has(e));
     f.sort((a, b) => {
       const af = userPrefs.favorites.has(a), bf = userPrefs.favorites.has(b);
@@ -2029,14 +2180,13 @@ function renderPickerList() {
       return a.localeCompare(b);
     });
     if (!f.length) return;
-    html += `<div class="group-label">${gn}</div>`;
+    html += `<div class="group-label">${g.label}</div>`;
     html += f.map(n => {
       const isFav = userPrefs.favorites.has(n);
-      return `
-        <div class="exercise-pick" onclick="pickerAddExercise(${JSON.stringify(n).replace(/'/g, "\\'")}); closeModal();">
-          <div class="name">${isFav ? '<span style="color:var(--gold,#F2B340);margin-right:6px;">★</span>' : ''}${escapeHtml(n)}</div>
-          <div class="add-icon">+</div>
-        </div>`;
+      return `<div class="exercise-pick" onclick="pickerAddExercise(${JSON.stringify(n).replace(/'/g, "\\'")}); closeModal();">
+        <div class="name">${isFav ? '<span style="color:var(--gold,#F2B340);margin-right:6px;">★</span>' : ''}${escapeHtml(n)}</div>
+        <div class="add-icon">+</div>
+      </div>`;
     }).join('');
   });
   if (!html) html = `<div class="empty">No matches for "${escapeHtml(q)}"</div>`;
@@ -2051,10 +2201,12 @@ function pickerAddExercise(name) {
 }
 function pickCategory(c) { setCategory(c); closeModal(); }
 function renderPool() {
-  return Object.entries(POOL).map(([cat, data]) => {
-    const am = data.am.length ? `<div class="group-label" style="color: var(--accent)">${cat} morning</div>${data.am.map(e => `<div class="exercise-pick" style="cursor:default"><div class="name">${escapeHtml(e)}</div></div>`).join('')}` : '';
-    const pm = data.pm.length ? `<div class="group-label" style="color: var(--warn)">${cat} afternoon</div>${data.pm.map(e => `<div class="exercise-pick" style="cursor:default"><div class="name">${escapeHtml(e)}</div></div>`).join('')}` : '';
-    return am + pm;
+  // Read-only "weekly split" view: show every muscle group with its full exercise list.
+  return MUSCLE_ORDER.map(muscle => {
+    const list = POOL[muscle] || [];
+    if (!list.length) return '';
+    return `<div class="group-label" style="color: var(--accent)">${MUSCLE_LABEL[muscle] || muscle}</div>` +
+      list.map(e => `<div class="exercise-pick" style="cursor:default"><div class="name">${escapeHtml(e)}</div></div>`).join('');
   }).join('');
 }
 function renderClaudePrompt() {

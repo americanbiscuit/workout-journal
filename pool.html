@@ -209,11 +209,6 @@
     <input class="search-box" id="search" type="text" placeholder="Search exercises..." oninput="render()" />
     <div class="chip-row" id="catChips"></div>
     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 4px;">
-      <div class="toggle-row" id="phaseToggle">
-        <button data-v="all" class="active" onclick="setPhase('all')">All</button>
-        <button data-v="am" onclick="setPhase('am')">AM</button>
-        <button data-v="pm" onclick="setPhase('pm')">PM</button>
-      </div>
       <div class="toggle-row" id="showToggle">
         <button data-v="visible" class="active" onclick="setShowMode('visible')">Active</button>
         <button data-v="favorites" onclick="setShowMode('favorites')">Stars</button>
@@ -240,21 +235,9 @@
           <input type="text" id="naName" placeholder="e.g. Pendlay Row" required style="width:100%;background:var(--surface);border:1px solid var(--border);padding:10px 12px;border-radius:10px;font-size:14px;font-family:inherit;" />
         </div>
         <div class="section">
-          <h3>Category</h3>
+          <h3>Muscle group</h3>
           <select id="naCategory" required style="width:100%;background:var(--surface);border:1px solid var(--border);padding:10px 12px;border-radius:10px;font-size:14px;font-family:inherit;">
-            <option value="Chest/Tri">Chest/Tri</option>
-            <option value="Back/Bi">Back/Bi</option>
-            <option value="Shoulders">Shoulders</option>
-            <option value="Abs">Abs</option>
-            <option value="Legs">Legs</option>
-            <option value="Universal">Universal (any day)</option>
-          </select>
-        </div>
-        <div class="section">
-          <h3>Phase</h3>
-          <select id="naPhase" required style="width:100%;background:var(--surface);border:1px solid var(--border);padding:10px 12px;border-radius:10px;font-size:14px;font-family:inherit;">
-            <option value="am">AM — Strength (machine + DB)</option>
-            <option value="pm">PM — Endurance / Supplement / Cardio</option>
+            <!-- populated dynamically from MUSCLE_ORDER in openAddExercise() -->
           </select>
         </div>
         <div class="section">
@@ -308,33 +291,114 @@
 </div>
 
 <script>
+// New muscle-group organization (no more AM/PM split). Mirrors POOL in index.html.
 const POOL = {
-  "Chest/Tri": {
-    am: ["Machine Chest Press","Cable Chest Press","Incline DB Press","Flat DB Press","Decline DB Press","DB Chest Fly","Cable Fly (High)","Cable Fly (Mid)","Cable Fly (Low)","Pec Deck Machine","Single-Arm DB Press","Tricep Pushdown (Bar)","Tricep Pushdown (Rope)","Overhead Cable Tricep Extension","DB Skull Crushers","DB Tricep Kickback","Overhead DB Tricep Extension","Single-Arm DB Tricep Extension","Tate Press","Close-Grip DB Press","JM Press (DB)","Cable Single-Arm Pushdown"],
-    pm: ["Standard Pushups","Diamond Pushups","Wide Pushups","Decline Pushups","Incline Pushups","Archer Pushups","Hindu Pushups","Pseudo Planche Pushups","Plyo Pushups","Clap Pushups","Spider-Man Pushups","T-Pushups","Parallel Bar Dips","Ring Dips","Bench Dips","Burpees","Tricep Pushdown Burnout","Pike Pushups (tri bias)","Pushup-to-Plank Taps","Explosive Pushups (off blocks)"]
-  },
-  "Back/Bi": {
-    am: ["Lat Pulldown (Wide)","Lat Pulldown (Close-Grip)","Lat Pulldown (Neutral)","Cable Row (High)","Cable Row (Mid)","Cable Row (Low)","Single-Arm Cable Row","Machine Row (Iso)","T-Bar Row (Machine)","DB One-Arm Row","Chest-Supported DB Row","DB High Pull","Reverse Pec Deck","Face Pulls","Straight-Arm Pulldown","DB Shrugs","Cable Shrugs","DB Curls","Hammer Curls","Concentration Curls","Preacher Curl Machine","Cable Curls (Bar)","Cable Curls (Rope)","Incline DB Curls","Spider Curls","21s","Drag Curls","Cross-Body Hammer Curls","Zottman Curls"],
-    pm: ["Pull-ups","Chin-ups","Neutral-Grip Pull-ups","Inverted Rows (TRX)","Inverted Rows (Bar)","Pushup Rows (Renegade)","Scapula Pulls","Dead Hangs","Chin Hold Isometric","Australian Pull-ups","Towel Rows","DB Curl Burnout","Hammer Curl Burnout","Cable Curl 21s","Band Pull-aparts","Face Pull Burnout"]
-  },
-  "Shoulders": {
-    am: ["Machine Shoulder Press","Seated DB Shoulder Press","Standing DB Press","Arnold Press","Single-Arm DB Press","DB Lateral Raise","Cable Lateral Raise","Machine Lateral Raise","DB Front Raise","Cable Front Raise","Plate Front Raise","DB Rear Delt Fly","Reverse Pec Deck","Cable Rear Delt Cross","Face Pulls","Cable Y-Raise","Cable W-Raise","DB Shrugs","Cuban Press","Around-the-Worlds","Bottoms-Up DB Press","DB Z-Press"],
-    pm: ["Pike Pushups","Decline Pike Pushups","Wall Walks","Wall Handstand Hold","Plank Shoulder Taps","Lateral Raise Burnout","Bear Crawls","Crab Walks","Plank-to-Down-Dog","Plate Shoulder Circles","Shoulder Tap Pushups","Pushup-to-Pike","Cable Lateral Iso Hold"]
-  },
-  "Abs": {
-    am: ["Cable Crunches","Weighted Decline Situps","Ab Wheel Rollouts","Hanging Leg Raises","Hanging Knee Raises","Captain's Chair Leg Raises","Russian Twists (Weighted)","Plank w/ Plate","Side Plank w/ Weight","Bird Dog","DB Side Bends","Pallof Press (Cable)","Cable Wood Chops","Standing Cable Crunch","Stir-the-Pot","Weighted V-Ups"],
-    pm: ["V-Ups","Hollow Holds","Hollow Rocks","Bicycle Crunches","Mountain Climbers","Plank","Side Plank","RKC Plank","Toes-to-Bar","Knees-to-Elbows","Dragon Flags","Windshield Wipers","L-Sit Hold","Russian Twists (BW)","Reverse Crunches","Flutter Kicks","Scissor Kicks","Plank Up-Downs","Cross-Body Mountain Climbers"]
-  },
-  "Legs": {
-    am: ["Leg Press","Leg Curls (Seated)","Leg Curls (Lying)","Leg Extensions","Hack Squat Machine","DB Goblet Squat","DB Walking Lunges","DB Reverse Lunges","DB Step-Ups","Bulgarian Split Squat (DB)","DB Sumo Squat","DB Romanian Deadlift","DB Single-Leg RDL","Hip Thrust (Machine)","DB Hip Thrust","Glute Kickback Machine","Cable Kickbacks","Hip Abduction Machine","Hip Adduction Machine","Standing Calf Raise (DB)","Seated Calf Raise (Machine)","Single-Leg Calf Raise (DB)"],
-    pm: ["Bulgarian Split Squat Jumps","Box Jumps","Broad Jumps","Jump Squats","Tuck Jumps","Lateral Box Jumps","Lateral Bounds","Skater Jumps","Single-Leg Hops","Walking Lunges (BW)","Reverse Lunges (BW)","Cossack Squats","Sissy Squats","Bulgarian Split Squats (BW)","Wall Sits","Pistol Squat Progressions","Step-Ups (BW)","Calf Raise Burnout"]
-  },
-  "Universal": {
-    am: [],
-    pm: ["Box Jumps","Ball Slams","Broad Jumps","Burpees","Mountain Climbers","Battle Ropes","Rowing Erg Sprint","Assault Bike Sprint","Jump Rope (singles)","Jump Rope (double-unders)","Bear Crawls","Crab Walks","Farmer Carry","Sled Push","Sled Pull","Devil Press","Thruster (DB)"]
-  }
+  chest: [
+    "Barbell Bench Press","Incline Barbell Bench","Decline Barbell Bench","Close-Grip Bench Press","Reverse-Grip Bench Press",
+    "Smith Machine Bench","Smith Incline Press","Machine Chest Press","Iso-Lateral Chest Press","Hammer Strength Incline Press","Pec Deck Machine",
+    "Flat DB Press","Incline DB Press","Decline DB Press","DB Floor Press","Neutral-Grip DB Press","Single-Arm DB Press","DB Squeeze Press",
+    "Cable Chest Press","Cable Fly (Low)","Cable Fly (Mid)","Cable Fly (High)","Cable Crossover","Single-Arm Cable Fly",
+    "DB Chest Fly","Incline DB Fly","Decline DB Fly","Landmine Press","Landmine Chest Press","Svend Press",
+    "Standard Pushups","Diamond Pushups","Wide Pushups","Decline Pushups","Incline Pushups","Deficit Pushups","Archer Pushups","Hindu Pushups","Pseudo Planche Pushups","Plyo Pushups","Clap Pushups","Spider-Man Pushups","T-Pushups","Explosive Pushups (off blocks)","Weighted Pushups",
+    "Parallel Bar Dips","Ring Dips","Assisted Dips (Machine)","Weighted Dips","Bench Dips",
+  ],
+  back: [
+    "Conventional Deadlift","Sumo Deadlift","Trap Bar Deadlift","Snatch-Grip Deadlift","Deficit Deadlift","Block Pull Deadlift","Rack Pull",
+    "Pull-ups","Chin-ups","Neutral-Grip Pull-ups","Weighted Pull-ups","Wide-Grip Pull-ups","Assisted Pull-ups (Machine)","Assisted Pull-ups (Band)","Australian Pull-ups","Inverted Rows (Bar)","Inverted Rows (TRX)",
+    "Lat Pulldown (Wide)","Lat Pulldown (Close-Grip)","Lat Pulldown (Neutral)","Behind-the-Neck Pulldown","Single-Arm Lat Pulldown","Straight-Arm Pulldown",
+    "Barbell Row","Pendlay Row","Yates Row","T-Bar Row","T-Bar Row (Machine)","Meadows Row","Seal Row","Chest-Supported Row (Machine)",
+    "Cable Row (High)","Cable Row (Mid)","Cable Row (Low)","Single-Arm Cable Row","Wide-Grip Cable Row","V-Grip Cable Row",
+    "DB One-Arm Row","Chest-Supported DB Row","DB Kroc Row","Bent-Over DB Row","DB High Pull",
+    "Machine Row (Iso-Lateral)","Hammer Strength Row",
+    "Face Pulls","Reverse Pec Deck","Rear Delt Fly (DB)","Rear Delt Fly (Cable)","Cable Rear Delt Cross","Band Pull-Aparts",
+    "DB Shrugs","Cable Shrugs","Barbell Shrugs","Behind-Back Shrugs","Trap Bar Shrugs",
+    "Scapula Pulls","Dead Hangs","Chin Hold Isometric","Renegade Rows","Towel Rows",
+  ],
+  biceps: [
+    "Barbell Curl","EZ-Bar Curl","Wide-Grip Barbell Curl","Close-Grip Barbell Curl","Reverse Curl (Barbell)",
+    "DB Curl","Alternating DB Curl","Hammer Curl","Cross-Body Hammer Curl","Incline DB Curl","Decline DB Curl","Concentration Curl","Spider Curl","Waiter Curl","Zottman Curls","Drag Curls","21s",
+    "Preacher Curl (Barbell)","Preacher Curl (DB)","Preacher Curl Machine","Machine Curl","Iso-Lateral Curl Machine",
+    "Cable Curl (Bar)","Cable Curl (Rope)","Cable Curl (Straight Bar)","Cable Reverse Curl","Bayesian Cable Curl","Single-Arm Cable Curl","Cable Preacher Curl",
+    "Chin-ups (weighted for biceps)","Inverted Chin Row","Ring Curls","Band Curls (Rope-Assist)",
+    "Cross-Body Hammer Curls","Hammer Curl Burnout","Cable Curl 21s","DB Curl Burnout",
+  ],
+  triceps: [
+    "Close-Grip Bench Press","Board Press (Tricep)","Floor Press",
+    "Skull Crushers (Barbell)","Skull Crushers (EZ-Bar)","Skull Crushers (DB)","JM Press","Tate Press","DB Rolling Skull Crushers","Rolling Tricep Extension",
+    "Tricep Pushdown (Bar)","Tricep Pushdown (Rope)","Tricep Pushdown (V-Bar)","Reverse-Grip Pushdown","Single-Arm Cable Pushdown","Straight-Bar Pushdown",
+    "Overhead Cable Tricep Extension","Overhead Rope Extension","Overhead DB Tricep Extension","Single-Arm Overhead DB Extension","EZ-Bar French Press","Barbell French Press","Single-Arm French Press",
+    "DB Tricep Kickback","Cable Kickback","Bent-Over Cable Kickback","Single-Arm DB Kickback",
+    "Close-Grip DB Press","Close-Grip Push-ups","Diamond Push-ups","Bodyweight Skull Crushers",
+    "Parallel Bar Dips (Tri Focus)","Bench Dips","Ring Dips (Tri)","Assisted Dips (Tri)","Weighted Bench Dips",
+    "Tricep Extension Machine","Iso-Lateral Tricep Machine",
+  ],
+  shoulders: [
+    "Overhead Press (Barbell)","Standing OHP","Seated Barbell OHP","Push Press","Bradford Press","Behind-the-Neck Press",
+    "DB Shoulder Press (Seated)","DB Shoulder Press (Standing)","Single-Arm DB Press","Arnold Press","DB Z-Press","Bottoms-Up DB Press","Half-Kneeling DB Press",
+    "Machine Shoulder Press","Smith Machine OHP","Iso-Lateral Shoulder Press",
+    "DB Lateral Raise","Seated DB Lateral Raise","Leaning DB Lateral Raise","Cable Lateral Raise","Behind-Back Cable Lateral","Machine Lateral Raise","Lu Raises","Y-Raise (DB)","Egyptian Lateral Raise",
+    "DB Front Raise","Cable Front Raise","Plate Front Raise","Barbell Front Raise","Alternating DB Front Raise",
+    "DB Rear Delt Fly","Reverse Pec Deck","Cable Rear Delt Cross","Face Pulls (High Cable)","Face Pulls (Rope)","Cable Y-Raise","Cable W-Raise","Prone Y Raise",
+    "Cuban Press","Around-the-Worlds","Scott Press","Barbell Shrugs","DB Shrugs","Trap-3 Raise",
+    "Handstand Push-ups","Pike Push-ups","Decline Pike Push-ups","Wall Walks","Wall Handstand Hold","Shoulder Tap Push-ups","Pushup-to-Pike",
+    "Landmine Press","Landmine Half-Kneeling Press","Kettlebell Bottoms-Up Press",
+  ],
+  quads: [
+    "Back Squat (Low-Bar)","Back Squat (High-Bar)","Front Squat","Zercher Squat","Box Squat","Pause Squat","Tempo Squat","Safety Bar Squat","Anderson Squat",
+    "Leg Press (45°)","Vertical Leg Press","Horizontal Leg Press","Single-Leg Leg Press","Machine Hack Squat","Belt Squat","V-Squat",
+    "Bulgarian Split Squat (DB)","Bulgarian Split Squat (Barbell)","Split Squat","Reverse Lunge (DB)","Reverse Lunge (Barbell)","Walking Lunges (DB)","Walking Lunges (Barbell)","Front-Rack Lunges","Curtsy Lunges","Lateral Lunges","Deficit Reverse Lunge",
+    "Cyclist Squat","Sissy Squat","Sissy Squat Machine","Heels-Elevated Goblet Squat","Goblet Squat","DB Sumo Squat","Kettlebell Goblet Squat",
+    "Leg Extension","Single-Leg Leg Extension","Iso-Lateral Leg Extension",
+    "Step-Ups (DB)","Step-Ups (Barbell)","Weighted Box Step-Ups","Pistol Squat","Pistol Squat Progression","Cossack Squats","Wall Sit","Weighted Wall Sit",
+  ],
+  hamstrings: [
+    "Romanian Deadlift (Barbell)","Romanian Deadlift (DB)","Single-Leg RDL (DB)","Single-Leg RDL (Kettlebell)","Stiff-Leg Deadlift",
+    "Good Morning (Barbell)","Seated Good Morning","Cable Pull-Through","Cable Straight-Leg Deadlift",
+    "Lying Leg Curl","Seated Leg Curl","Standing Leg Curl","Single-Leg Leg Curl","Prone Leg Curl","Kneeling Leg Curl",
+    "Nordic Hamstring Curl","Assisted Nordic","Slider Leg Curl","Physioball Leg Curl","Glute-Ham Raise (GHR)",
+    "Barbell Hip Thrust","DB Hip Thrust","Single-Leg Hip Thrust","Kas Glute Bridge","Machine Hip Thrust","Frog Pumps",
+    "Kettlebell Swing (Russian)","Kettlebell Swing (American)","One-Arm Kettlebell Swing","Reverse Hyperextension","45° Back Extension",
+    "Glute Kickback (Machine)","Cable Glute Kickback","DB Deadlift","Sumo DB Deadlift",
+  ],
+  calves: [
+    "Standing Calf Raise (Machine)","Standing Calf Raise (Barbell)","Standing Calf Raise (Smith)","Standing Calf Raise (DB)","Single-Leg Standing Calf Raise",
+    "Seated Calf Raise (Machine)","Seated Calf Raise (DB)","Seated Calf Raise (Plate)","Tibialis Raise","Tibialis Raise (Band)",
+    "Donkey Calf Raise","Leg Press Calf Raise","Single-Leg Leg Press Calf Raise",
+    "Calf Raise (Bodyweight)","Deficit Calf Raise","Weighted Deficit Calf Raise","Toe Walks","Farmer Walk on Toes","Barefoot Calf Raise",
+    "Jump Rope (Singles)","Jump Rope (Double-Unders)","Jump Rope (Cross-Overs)","Calf Raise Burnout","Broad Jumps","Box Jumps (Calf Focus)",
+  ],
+  abs: [
+    "Cable Crunches","Kneeling Cable Crunches","Standing Cable Crunch","Weighted Decline Sit-ups","Weighted Sit-ups","Ab Wheel Rollout","Standing Ab Wheel","Barbell Rollout",
+    "Hanging Leg Raise","Hanging Knee Raise","Toes-to-Bar","Knees-to-Elbows","Captain's Chair Leg Raise","Captain's Chair Knee Raise","Hanging Windshield Wipers","Hanging L-Sit","Dragon Flag",
+    "V-Ups","Weighted V-Ups","Hollow Hold","Hollow Rocks","L-Sit Hold","Front Lever Progression",
+    "Bicycle Crunches","Mountain Climbers","Cross-Body Mountain Climbers","Reverse Crunch","Flutter Kicks","Scissor Kicks","Windshield Wipers (Floor)",
+    "Plank","Long-Lever Plank","Weighted Plank","Side Plank","Weighted Side Plank","RKC Plank","Copenhagen Plank","Plank Up-Downs","Plank Shoulder Taps","Stir-the-Pot",
+    "Russian Twist (BW)","Russian Twist (Weighted)","Russian Twist (Plate)","DB Side Bend","Cable Side Bend","Suitcase Carry",
+    "Pallof Press (Cable)","Pallof Press (Band)","Anti-Rotation Hold","Cable Wood Chop","Reverse Wood Chop","Landmine Twist","Landmine 180",
+    "Dead Bug","Bird Dog","Weighted Bird Dog","Hollow Body Rock",
+  ],
+  full_body: [
+    "Burpees","Devil Press","Man Makers","Squat Thrust","Bear Crawl","Crab Walk","Duck Walk","Inch Worm","Spider-Man Crawl",
+    "Thruster (DB)","Thruster (Barbell)","Thruster (Kettlebell)","Clean & Press (DB)","Clean & Press (Barbell)","Power Clean","Hang Clean","Push Jerk","Split Jerk","Barbell Complex",
+    "Kettlebell Swing","Kettlebell Snatch","Turkish Get-Up","Kettlebell Clean","Kettlebell Windmill","Kettlebell Halo",
+    "Farmer Carry","Suitcase Carry","Overhead Carry","Front Rack Carry","Yoke Carry","Zercher Carry",
+    "Sled Push","Sled Pull","Sled Drag","Prowler Push","Reverse Sled Drag",
+    "Battle Ropes (Waves)","Battle Ropes (Slams)","Battle Ropes (Circles)","Battle Ropes (Alternating)",
+    "Assault Bike Sprint","Rower Sprint","Ski Erg Sprint","Airdyne Intervals","Concept 2 Bike",
+    "Box Jumps","Broad Jumps","Depth Jumps","Lateral Bounds","Skater Jumps","Tuck Jumps","Jump Squats","Split Squat Jumps","Lateral Box Jumps","Single-Leg Hops",
+    "Ball Slams","Wall Balls","Med Ball Throws (Rotational)","Med Ball Chest Pass","Med Ball Overhead Throw",
+    "Wall Sits","Wall Walks","Handstand Hold",
+    "Hip Halo Warmup","Band Pull-Aparts","Cat-Cow","World's Greatest Stretch","90/90 Hip Rotations",
+  ],
 };
-const CATEGORIES = ["Chest/Tri","Back/Bi","Shoulders","Abs","Legs","Universal"];
+const MUSCLE_LABEL = {
+  chest: 'Chest', back: 'Back', biceps: 'Biceps', triceps: 'Triceps', shoulders: 'Shoulders',
+  quads: 'Quads', hamstrings: 'Hamstrings & Glutes', calves: 'Calves', abs: 'Core & Abs',
+  full_body: 'Full Body / Supporting',
+};
+const MUSCLE_ORDER = ['chest','back','biceps','triceps','shoulders','quads','hamstrings','calves','abs','full_body'];
+// CATEGORIES kept as an alias for backward-compat variable references — now = muscle groups
+const CATEGORIES = MUSCLE_ORDER;
 
 // Form focus cues — 1-2 line "what to focus on" per exercise
 const FOCUS = {
@@ -442,14 +506,18 @@ function getFocus(name) {
 // Custom user-added exercises (loaded from API)
 let CUSTOM = []; // array of {id, name, category, phase, focus_note}
 
-// Flatten and dedupe pool (default + custom merged)
+// Flatten and dedupe pool (defaults + customs merged, keyed by muscle group)
 function buildAll() {
   const out = [];
-  CATEGORIES.forEach(cat => {
-    POOL[cat].am.forEach(n => out.push({ name: n, category: cat, phase: 'am', custom: false }));
-    POOL[cat].pm.forEach(n => out.push({ name: n, category: cat, phase: 'pm', custom: false }));
+  MUSCLE_ORDER.forEach(m => {
+    (POOL[m] || []).forEach(n => out.push({ name: n, muscle: m, custom: false }));
   });
-  CUSTOM.forEach(c => out.push({ name: c.name, category: c.category, phase: c.phase, custom: true, customId: c.id, focusOverride: c.focus_note }));
+  CUSTOM.forEach(c => {
+    // New records: category = muscle group. Legacy records: category = day category like 'Chest/Tri'.
+    // Map legacy → 'full_body' so they still show up somewhere.
+    const muscle = MUSCLE_ORDER.includes(c.category) ? c.category : 'full_body';
+    out.push({ name: c.name, muscle, custom: true, customId: c.id, focusOverride: c.focus_note });
+  });
   const seen = new Set();
   return out.filter(e => {
     if (seen.has(e.name)) return false;
@@ -460,8 +528,7 @@ let ALL = buildAll();
 
 // State
 let prefs = { favorites: new Set(), hidden: new Set() };
-let activeCategory = 'Chest/Tri'; // start narrow — less cluttered default
-let activePhase = 'all';
+let activeCategory = 'all'; // muscle group filter; 'all' = show every muscle
 let showMode = 'visible';
 let currentDetailEx = null;
 let currentDetailNotes = { youtube_url: null, custom_notes: null };
@@ -485,8 +552,8 @@ async function init() {
     ALL = buildAll();
   }
   document.getElementById('catChips').innerHTML = `
-    <button class="chip" data-cat="all" onclick="setCat('all')">All</button>
-    ${CATEGORIES.map(c => `<button class="chip ${c === activeCategory ? 'active' : ''}" data-cat="${c}" onclick="setCat('${c}')">${c}</button>`).join('')}
+    <button class="chip ${activeCategory === 'all' ? 'active' : ''}" data-cat="all" onclick="setCat('all')">All</button>
+    ${MUSCLE_ORDER.map(m => `<button class="chip ${m === activeCategory ? 'active' : ''}" data-cat="${m}" onclick="setCat('${m}')">${MUSCLE_LABEL[m]}</button>`).join('')}
   `;
   render();
 }
@@ -494,8 +561,10 @@ async function init() {
 // ===== Add new exercise =====
 function openAddExercise() {
   document.getElementById('naName').value = '';
-  document.getElementById('naCategory').value = activeCategory !== 'all' ? activeCategory : 'Chest/Tri';
-  document.getElementById('naPhase').value = activePhase !== 'all' ? activePhase : 'am';
+  // Rebuild category dropdown with muscle groups
+  const sel = document.getElementById('naCategory');
+  sel.innerHTML = MUSCLE_ORDER.map(m => `<option value="${m}">${MUSCLE_LABEL[m]}</option>`).join('');
+  sel.value = MUSCLE_ORDER.includes(activeCategory) ? activeCategory : 'chest';
   document.getElementById('naFocus').value = '';
   document.getElementById('naError').style.display = 'none';
   document.getElementById('addBg').classList.add('show');
@@ -504,8 +573,7 @@ function closeAdd() { document.getElementById('addBg').classList.remove('show');
 
 async function submitNewExercise() {
   const name = document.getElementById('naName').value.trim();
-  const category = document.getElementById('naCategory').value;
-  const phase = document.getElementById('naPhase').value;
+  const category = document.getElementById('naCategory').value;   // muscle group
   const focus_note = document.getElementById('naFocus').value.trim();
   const err = document.getElementById('naError');
   err.style.display = 'none';
@@ -513,14 +581,14 @@ async function submitNewExercise() {
     const r = await fetch('/api/custom-exercises', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, category, phase, focus_note: focus_note || null }),
+      body: JSON.stringify({ name, category, focus_note: focus_note || null }),
     });
     if (!r.ok) { const { error } = await r.json(); throw new Error(error || 'Failed'); }
     const { id } = await r.json();
-    CUSTOM.push({ id, name, category, phase, focus_note: focus_note || null });
+    CUSTOM.push({ id, name, category, focus_note: focus_note || null });
     ALL = buildAll();
     closeAdd();
-    // Jump to that category to see the new one
+    // Jump to that muscle group so the new one is visible immediately
     if (activeCategory !== 'all' && activeCategory !== category) setCat(category);
     else render();
   } catch (e) {
@@ -536,11 +604,6 @@ function setCat(c) {
   document.querySelectorAll('#catChips .chip').forEach(b => b.classList.toggle('active', b.dataset.cat === c));
   render();
 }
-function setPhase(p) {
-  activePhase = p;
-  document.querySelectorAll('#phaseToggle button').forEach(b => b.classList.toggle('active', b.dataset.v === p));
-  render();
-}
 function setShowMode(s) {
   showMode = s;
   document.querySelectorAll('#showToggle button').forEach(b => b.classList.toggle('active', b.dataset.v === s));
@@ -550,22 +613,24 @@ function setShowMode(s) {
 function render() {
   const q = document.getElementById('search').value.toLowerCase().trim();
   let list = ALL.filter(e => {
-    if (activeCategory !== 'all' && e.category !== activeCategory) return false;
-    if (activePhase !== 'all' && e.phase !== activePhase) return false;
+    if (activeCategory !== 'all' && e.muscle !== activeCategory) return false;
     if (q && !e.name.toLowerCase().includes(q)) return false;
     return true;
   });
   if (showMode === 'visible') list = list.filter(e => !prefs.hidden.has(e.name));
   else if (showMode === 'favorites') list = list.filter(e => prefs.favorites.has(e.name));
 
-  // Group by phase if showing all phases (cleaner visual hierarchy)
-  list.sort((a, b) => {
-    if (a.phase !== b.phase) return a.phase < b.phase ? -1 : 1;
-    const af = prefs.favorites.has(a.name), bf = prefs.favorites.has(b.name);
-    if (af !== bf) return af ? -1 : 1;
-    const ah = prefs.hidden.has(a.name), bh = prefs.hidden.has(b.name);
-    if (ah !== bh) return ah ? 1 : -1;
-    return a.name.localeCompare(b.name);
+  // Group by muscle group. Favorites float to top within each group.
+  const byMuscle = {};
+  list.forEach(e => { (byMuscle[e.muscle] = byMuscle[e.muscle] || []).push(e); });
+  Object.values(byMuscle).forEach(arr => {
+    arr.sort((a, b) => {
+      const af = prefs.favorites.has(a.name), bf = prefs.favorites.has(b.name);
+      if (af !== bf) return af ? -1 : 1;
+      const ah = prefs.hidden.has(a.name), bh = prefs.hidden.has(b.name);
+      if (ah !== bh) return ah ? 1 : -1;
+      return a.name.localeCompare(b.name);
+    });
   });
 
   document.getElementById('stats').textContent = `${list.length} · ${prefs.favorites.size}★ · ${prefs.hidden.size} hidden`;
@@ -577,32 +642,33 @@ function render() {
   }
 
   let html = '';
-  let lastPhase = null;
-  list.forEach(e => {
-    if (activePhase === 'all' && e.phase !== lastPhase) {
-      lastPhase = e.phase;
-      html += `<div class="group-label ${e.phase}">${e.phase === 'am' ? 'Morning · Strength' : 'Afternoon · Endurance/Supplement'}</div>`;
+  MUSCLE_ORDER.forEach(muscle => {
+    const arr = byMuscle[muscle];
+    if (!arr?.length) return;
+    // Only show group label when 'All' filter is active — otherwise it's redundant
+    if (activeCategory === 'all') {
+      html += `<div class="group-label">${MUSCLE_LABEL[muscle]}</div>`;
     }
-    const isFav = prefs.favorites.has(e.name);
-    const isHid = prefs.hidden.has(e.name);
-    const focus = getFocus(e.name);
-    html += `
-      <div class="ex-row ${isFav ? 'fav' : ''} ${isHid ? 'hid' : ''}" onclick="openDetail('${escapeHtml(e.name).replace(/'/g, "\\'")}', '${e.category}', '${e.phase}')">
+    arr.forEach(e => {
+      const isFav = prefs.favorites.has(e.name);
+      const isHid = prefs.hidden.has(e.name);
+      const focus = getFocus(e.name);
+      html += `<div class="ex-row ${isFav ? 'fav' : ''} ${isHid ? 'hid' : ''}" onclick="openDetail('${escapeHtml(e.name).replace(/'/g, "\\'")}', '${e.muscle}')">
         <div class="name-block">
           <div class="name">${isFav ? '<span class="star-mini">★</span>' : ''}${escapeHtml(e.name)}</div>
           <div class="focus">${focus ? escapeHtml(focus) : '<em>Tap for video + add your notes</em>'}</div>
         </div>
-      </div>
-    `;
+      </div>`;
+    });
   });
   c.innerHTML = html;
 }
 
 // ===== Detail modal =====
-async function openDetail(name, category, phase) {
-  currentDetailEx = { name, category, phase };
+async function openDetail(name, muscle) {
+  currentDetailEx = { name, muscle };
   document.getElementById('dName').textContent = name;
-  document.getElementById('dMeta').textContent = `${category} · ${phase.toUpperCase()}`;
+  document.getElementById('dMeta').textContent = MUSCLE_LABEL[muscle] || muscle || '';
   const focus = getFocus(name);
   document.getElementById('dFocus').className = focus ? 'focus-text' : 'focus-text empty';
   document.getElementById('dFocus').textContent = focus || 'No focus notes yet. Add your own below.';
@@ -653,7 +719,7 @@ async function toggleStar() {
   prefs.hidden.delete(name);
   if (newStatus === 'favorite') prefs.favorites.add(name);
   // Update buttons + re-render list under hood
-  openDetail(name, currentDetailEx.category, currentDetailEx.phase); // refresh modal state
+  openDetail(name, currentDetailEx.muscle); // refresh modal state
   await fetch('/api/exercise-prefs', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, status: newStatus }),
@@ -668,7 +734,7 @@ async function toggleHide() {
   prefs.favorites.delete(name);
   prefs.hidden.delete(name);
   if (newStatus === 'hidden') prefs.hidden.add(name);
-  openDetail(name, currentDetailEx.category, currentDetailEx.phase);
+  openDetail(name, currentDetailEx.muscle);
   await fetch('/api/exercise-prefs', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, status: newStatus }),
