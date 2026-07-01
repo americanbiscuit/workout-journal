@@ -2124,7 +2124,7 @@ function openModal(type, ...args) {
       : '';
     body.innerHTML = `
       ${adminLink}
-      <div class="menu-item" onclick="openModal('claudePrompt')">Claude Prompt <span class="meta">log via AI</span></div>
+      <div class="menu-item" onclick="openModal('claudePrompt')">AI Log Prompt <span class="meta">log via any AI</span></div>
       <div class="menu-item" onclick="openModal('split')">Weekly Split <span class="meta">view</span></div>
       <div class="menu-item" onclick="location.href='/templates.html'">Day Layouts <span class="meta">customize sections</span></div>
       <div class="menu-item" onclick="toggleCategoryPill()">Show day category pill <span class="meta" id="categoryPillPrefLabel">off</span></div>
@@ -2137,7 +2137,7 @@ function openModal(type, ...args) {
       <div class="menu-item danger" onclick="clearAll()">Clear All Data</div>
     `;
   } else if (type === 'claudePrompt') {
-    title.textContent = 'Claude Prompt';
+    title.textContent = 'AI Log Prompt';
     search.innerHTML = ''; chips.innerHTML = '';
     body.innerHTML = renderClaudePrompt();
   } else if (type === 'pool') {
@@ -2234,72 +2234,90 @@ function renderPool() {
 function renderClaudePrompt() {
   const today = new Date().toISOString().slice(0,10);
   const origin = location.origin;
-  const prompt = `I'm logging a workout to my journal at ${origin}.
-Describe what I did and you'll output a clickable URL that imports it directly.
+  const prompt = `You will help me log a workout to my journal at ${origin}. Your ONLY job is to convert my natural-language description into a clickable save link. Do not offer advice or ask follow-up questions unless my description is truly ambiguous.
 
-OUTPUT FORMAT (exactly two things):
-1. A 1-line summary of what you parsed.
+# YOUR OUTPUT (exactly two things, in this order)
+
+1. A one-line summary of what you parsed (so I can eyeball it).
 2. A clickable markdown link in EXACTLY this format:
-   [Save workout](${origin}/import#data=URL_ENCODED_JSON)
 
-Where URL_ENCODED_JSON is the result of encodeURIComponent on a JSON object matching this schema:
+[Save workout](${origin}/import.html#data=URL_ENCODED_JSON)
+
+Where URL_ENCODED_JSON is the result of encodeURIComponent applied to a JSON object matching the schema below.
+
+Do NOT print the raw JSON. Do NOT explain the JSON. Only print the summary + the link.
+
+# JSON SCHEMA
+
+\`\`\`
 {
-  "date": "YYYY-MM-DD",                   // today is ${today} unless I say otherwise
-  "category": "Chest/Tri" | "Back/Bi" | "Shoulders" | "Abs" | "Legs",
-  "bodyWeight": number | null,
-  "sleep": number | null,
-  "energy": number | null,
-  "am": {
+  "date": "YYYY-MM-DD",                              // today is ${today} unless I say otherwise
+  "category": "string",                              // freeform: "Chest", "Push Day", "Legs", "Rest", etc. Optional.
+  "bodyWeight": number | null,                       // lbs
+  "sleep": number | null,                            // hours
+  "energy": number | null,                           // 1-10
+  "notes": "string",
+  "am": {                                            // strength: exercises with sets
     "exercises": [
-      { "name": "string", "sets": [{ "reps": number, "weight": number | null }] }
+      { "name": "string", "sets": [{ "reps": number | null, "weight": number | null }] }
     ]
   },
-  "cardio": { "type": "Run"|"Walk"|"Run/Walk"|"Bike"|"Row", "distance": number, "time": number },
-  "metcon": {
-    "rounds": number | null, "time": number | null, "rpe": number | null,
-    "exercises": [{ "name": "string", "reps": number | null }]
+  "cardio": {                                        // one cardio session
+    "type": "Run" | "Walk" | "Run/Walk" | "Bike" | "Row" | "Swim" | "Elliptical" | "—",
+    "distance": number | null,                       // miles
+    "time": number | null                            // minutes
   },
-  "notes": "string"
+  "metcon": {                                        // conditioning / supplemental circuit
+    "rounds": number | null,
+    "time": number | null,                           // minutes
+    "rpe": number | null,                            // 1-10 perceived effort
+    "exercises": [{ "name": "string", "reps": number | null }]
+  }
 }
+\`\`\`
 
-DEFAULT CATEGORY BY DAY OF WEEK:
-- Mon = Chest/Tri (chest press, flys, tricep extensions, skull crushers, abs)
-- Tue = Back/Bi (pulldowns, rows, curls, abs)
-- Wed = Shoulders (OHP, lateral/front/rear raises, abs)
-- Thu = Abs (variable)
-- Fri = Legs (leg press, leg curls, leg extensions, DB lunges/RDL — NO deadlifts, no squat rack)
+# RULES
 
-CONSTRAINTS:
-- AM strength is MACHINE or DUMBBELL only (no bench, no squat rack)
-- PM cardio is usually a 2-mile run/walk
-- PM metcon is supplement work for the day's muscle group + cardio plyos (pushups, dips, ball slams, box jumps, broad jumps, BSS jumps for legs, etc.)
-- Weights in lbs. Bodyweight exercises = weight null.
-- If I don't give a number for something (e.g. "did some pushups"), set the field to null.
-- Use the day's default category unless I explicitly say otherwise.
+- **Weights in lbs.** Bodyweight exercises → set weight to null.
+- **Missing values → null.** Don't invent numbers. If I say "did some pushups" without a rep count, reps = null.
+- **Date defaults to today (${today}).** Only change it if I explicitly say "yesterday", "last Friday", or give a date.
+- **Sections are optional.** If I only did cardio, only fill \`cardio\`. If I only did strength, only fill \`am\`. Omit unused top-level keys (or leave them as empty objects).
+- **Category is freeform text.** Use whatever fits ("Push Day", "Rest", "Cardio Only"). Don't force it into a fixed list.
+- **Exercise names should match common gym vocabulary.** ("Incline DB Press" not "inclined dumbell chest press"). Small corrections OK.
+- **URL-encode carefully.** JSON.stringify → encodeURIComponent → paste into the link. No line breaks inside the URL.
 
-After producing the link, do NOT include the raw JSON in your response — only the summary and the clickable link. I'll tap it to save.
+# EXAMPLE
 
-Here's today's workout:
+If I say:
+> Did 3 sets of incline DB press at 60lb x 10, plus some pushdowns 3x12. Then a 2mi run in 22 min.
+
+You output:
+Parsed: 2 strength exercises + 2mi run. Category: Chest.
+[Save workout](${origin}/import.html#data=%7B%22date%22%3A%22${today}%22%2C%22category%22%3A%22Chest%22%2C%22am%22%3A%7B%22exercises%22%3A%5B%7B%22name%22%3A%22Incline%20DB%20Press%22%2C%22sets%22%3A%5B%7B%22reps%22%3A10%2C%22weight%22%3A60%7D%2C%7B%22reps%22%3A10%2C%22weight%22%3A60%7D%2C%7B%22reps%22%3A10%2C%22weight%22%3A60%7D%5D%7D%2C%7B%22name%22%3A%22Tricep%20Pushdown%22%2C%22sets%22%3A%5B%7B%22reps%22%3A12%2C%22weight%22%3Anull%7D%2C%7B%22reps%22%3A12%2C%22weight%22%3Anull%7D%2C%7B%22reps%22%3A12%2C%22weight%22%3Anull%7D%5D%7D%5D%7D%2C%22cardio%22%3A%7B%22type%22%3A%22Run%22%2C%22distance%22%3A2%2C%22time%22%3A22%7D%7D)
+
+# HERE'S TODAY'S WORKOUT
 `;
 
   return `
     <div style="padding: 16px 20px; color: var(--text-2); font-size: 13px; line-height: 1.5;">
-      Copy this prompt, paste it into Claude on your phone, then describe your workout. Claude will give you a clickable link that saves it.
+      Copy this prompt, paste it into <strong>any AI chatbot</strong> (Claude, ChatGPT, Gemini, Grok, Perplexity — any of them), then describe your workout in plain English. The AI will hand you back a clickable link that saves the workout here.
     </div>
     <div style="padding: 0 20px;">
-      <textarea id="claudePromptText" readonly style="width: 100%; background: var(--surface); border: 1px solid var(--border-soft); color: var(--text); padding: 14px; border-radius: 10px; min-height: 280px; font-size: 12px; font-family: -apple-system, monospace; line-height: 1.5; resize: vertical;">${escapeHtml(prompt)}</textarea>
+      <textarea id="claudePromptText" readonly style="width: 100%; background: var(--surface); border: 1px solid var(--border-soft); color: var(--text); padding: 14px; border-radius: 10px; min-height: 320px; font-size: 12px; font-family: ui-monospace, Menlo, monospace; line-height: 1.5; resize: vertical;">${escapeHtml(prompt)}</textarea>
     </div>
     <div style="padding: 12px 20px;">
       <button onclick="copyClaudePrompt()" style="width: 100%; background: var(--accent); color: white; border: none; padding: 14px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit;" id="copyBtn">Copy Prompt</button>
     </div>
     <div style="padding: 8px 20px 20px; color: var(--text-2); font-size: 12px; line-height: 1.6;">
-      <strong style="color: var(--text); font-size: 13px;">How it works:</strong><br>
-      1. Tap "Copy Prompt" above<br>
-      2. Open Claude on your phone, paste the prompt<br>
-      3. Type or speak your workout ("did chest press 3x10 at 100, dips 3x12, ran 2mi in 22min, etc.")<br>
-      4. Claude gives you a "Save workout" link<br>
-      5. Tap it → opens this site → preview → tap Save<br><br>
-      <em>No API key required. The prompt is generic — paste it once, use it forever.</em>
+      <strong style="color: var(--text); font-size: 13px;">How it works</strong><br>
+      1. Tap <strong>Copy Prompt</strong> above.<br>
+      2. Open any AI chatbot on your phone (Claude, ChatGPT, Gemini, Grok, whatever you use).<br>
+      3. Paste the prompt.<br>
+      4. Type or dictate your workout in plain English — e.g. <em>"chest press 3x10 at 100, incline flies 3x12 at 30, ran 2mi in 22min, felt like a 7/10"</em>.<br>
+      5. The AI hands back a <strong>Save workout</strong> link. Tap it, review the preview, tap Save.<br><br>
+      <strong style="color: var(--text); font-size: 13px;">Why it's nice</strong><br>
+      No API key. No integration. Voice-to-text in the AI app gives you fully hands-free logging (talk your workout, tap the link).<br><br>
+      <em style="color: var(--muted);">Works because the AI reads the schema in the prompt, builds the URL for you, and the import page decodes it. Your data never touches the AI provider's servers as anything more than a URL string.</em>
     </div>
   `;
 }
