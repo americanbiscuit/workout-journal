@@ -47,7 +47,14 @@
   button { font-family: inherit; }
   input, select, textarea {
     font-family: inherit;
-    font-size: 16px;
+    font-size: 16px;   /* 16px prevents iOS Safari auto-zoom on input focus */
+  }
+  /* Mobile touch behavior: kill the blue tap-highlight overlay iOS/Android show;
+     touch-action: manipulation disables the 300ms double-tap-to-zoom delay on
+     interactive elements. Both no-ops on desktop. */
+  * { -webkit-tap-highlight-color: transparent; }
+  button, a, input, select, textarea, .exercise-pick, .menu-item, .set-row, .week-day-card, .month-cell {
+    touch-action: manipulation;
   }
 
   /* ============ HEADER (dark) ============ */
@@ -58,8 +65,8 @@
     background: var(--header-bg);
     color: var(--header-text);
     border-bottom: 1px solid var(--header-border);
-    /* Respect safe-area insets on notched phones so the menu button isn't flush against the edge */
-    padding: 18px max(20px, env(safe-area-inset-right)) 18px max(20px, env(safe-area-inset-left));
+    /* Respect safe-area insets on notched phones: notch-clear top + edge-clear left/right */
+    padding: calc(18px + env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) 18px max(20px, env(safe-area-inset-left));
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -948,15 +955,15 @@
         <div class="pm-row three" style="margin-top: 12px">
           <div class="input-group">
             <label>Body Wt</label>
-            <input type="number" id="bodyWeight" placeholder="—" onchange="autoSave()" />
+            <input type="number" inputmode="decimal" id="bodyWeight" placeholder="—" onchange="autoSave()" />
           </div>
           <div class="input-group">
             <label>Sleep (hr)</label>
-            <input type="number" step="0.5" id="sleep" placeholder="—" onchange="autoSave()" />
+            <input type="number" inputmode="decimal" step="0.5" id="sleep" placeholder="—" onchange="autoSave()" />
           </div>
           <div class="input-group">
             <label>Energy /10</label>
-            <input type="number" min="1" max="10" id="energy" placeholder="—" onchange="autoSave()" />
+            <input type="number" inputmode="numeric" min="1" max="10" id="energy" placeholder="—" onchange="autoSave()" />
           </div>
         </div>
         <textarea id="dayNotes" placeholder="How'd it go? Anything to remember next time?" onchange="autoSave()"></textarea>
@@ -1356,10 +1363,10 @@ function classicSectionsHTML() {
             </select>
           </div>
           <div class="input-group"><label>Distance (mi)</label>
-            <input type="number" step="0.1" id="cardioDist" value="2" onchange="autoSave()" />
+            <input type="number" inputmode="decimal" step="0.1" id="cardioDist" value="2" onchange="autoSave()" />
           </div>
           <div class="input-group"><label>Time (min)</label>
-            <input type="number" step="0.1" id="cardioTime" onchange="autoSave()" />
+            <input type="number" inputmode="decimal" step="0.1" id="cardioTime" onchange="autoSave()" />
           </div>
         </div>
       </div>
@@ -1372,13 +1379,13 @@ function classicSectionsHTML() {
       <div class="pm-card">
         <div class="pm-row three" style="margin-bottom: 14px">
           <div class="input-group"><label>Rounds</label>
-            <input type="number" id="metconRounds" onchange="autoSave()" />
+            <input type="number" inputmode="numeric" id="metconRounds" onchange="autoSave()" />
           </div>
           <div class="input-group"><label>Time (min)</label>
-            <input type="number" step="0.5" id="metconTime" onchange="autoSave()" />
+            <input type="number" inputmode="decimal" step="0.5" id="metconTime" onchange="autoSave()" />
           </div>
           <div class="input-group"><label>RPE /10</label>
-            <input type="number" min="1" max="10" id="metconRPE" onchange="autoSave()" />
+            <input type="number" inputmode="numeric" min="1" max="10" id="metconRPE" onchange="autoSave()" />
           </div>
         </div>
         <div id="metconList"></div>
@@ -1410,17 +1417,17 @@ function renderSectionShell(i, sec, state) {
           <option>Bike</option><option>Row</option><option>Swim</option><option>Elliptical</option><option>—</option>
         </select></div>
       <div class="input-group"><label>Distance (mi)</label>
-        <input type="number" step="0.1" id="sec-${i}-cardio-dist" value="${state.distance ?? ''}" onchange="autoSave()" /></div>
+        <input type="number" inputmode="decimal" step="0.1" id="sec-${i}-cardio-dist" value="${state.distance ?? ''}" onchange="autoSave()" /></div>
       <div class="input-group"><label>Time (min)</label>
-        <input type="number" step="0.1" id="sec-${i}-cardio-time" value="${state.time ?? ''}" onchange="autoSave()" /></div>
+        <input type="number" inputmode="decimal" step="0.1" id="sec-${i}-cardio-time" value="${state.time ?? ''}" onchange="autoSave()" /></div>
     </div></div>`,
     metcon:   () => `<div class="pm-card"><div class="pm-row three" style="margin-bottom: 14px">
       <div class="input-group"><label>Rounds</label>
-        <input type="number" id="sec-${i}-metcon-rounds" value="${state.rounds ?? ''}" onchange="autoSave()" /></div>
+        <input type="number" inputmode="numeric" id="sec-${i}-metcon-rounds" value="${state.rounds ?? ''}" onchange="autoSave()" /></div>
       <div class="input-group"><label>Time (min)</label>
-        <input type="number" step="0.5" id="sec-${i}-metcon-time" value="${state.time ?? ''}" onchange="autoSave()" /></div>
+        <input type="number" inputmode="decimal" step="0.5" id="sec-${i}-metcon-time" value="${state.time ?? ''}" onchange="autoSave()" /></div>
       <div class="input-group"><label>RPE /10</label>
-        <input type="number" min="1" max="10" id="sec-${i}-metcon-rpe" value="${state.rpe ?? ''}" onchange="autoSave()" /></div>
+        <input type="number" inputmode="numeric" min="1" max="10" id="sec-${i}-metcon-rpe" value="${state.rpe ?? ''}" onchange="autoSave()" /></div>
     </div>
     <div id="sec-${i}-metcon-list"></div>
     <button class="add-exercise-btn" style="margin-top: 12px; padding: 14px;" onclick="openModal('picker', ${i})">Add Movement</button></div>`,
